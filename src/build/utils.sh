@@ -151,10 +151,8 @@ dl_apk() {
 	else
 		url="https://www.apkmirror.com$(req "$url" - | tr '\n' ' ' | sed -n "s/href=\"/@/g; s;.*${regexp}.*;\1;p")"
 	fi
-	url="https://www.apkmirror.com$(req "$url" - | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')"
-   	url="https://www.apkmirror.com$(req "$url" - | grep -oP 'id="download-link".*?href="\K[^"]+')"
-	#url="https://www.apkmirror.com$(req "$url" - | $pup -p --charset utf-8 'a.downloadButton attr{href}')"
-   	#url="https://www.apkmirror.com$(req "$url" - | $pup -p --charset utf-8 'a#download-link attr{href}')"
+	url="https://www.apkmirror.com$(req "$url" - | grep -oP 'href="\/apk\/[^"]+' | head -1)"
+	url="https://www.apkmirror.com$(req "$url" - | grep -oP 'href="\/apk\/[^"]+' | head -1)"
 	if [[ "$url" == "https://www.apkmirror.com" ]]; then
 		exit 0
 	fi

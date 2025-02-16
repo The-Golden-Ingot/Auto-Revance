@@ -3,8 +3,10 @@
 source ./src/build/utils.sh
 # Download requirements
 revanced_dl(){
+	set -e  # Exit immediately on error
 	dl_gh "revanced-patches" "revanced" "prerelease"
  	dl_gh "revanced-cli" "revanced" "latest"
+	set +e
 }
 
 patch_ggphotos() {
@@ -29,7 +31,7 @@ patch_lightroom() {
 	initial_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/download" -)
 	
 	# Step 2: Click variants button and get its page
-	variants_url=$(echo "$initial_page" | $pup '#variants-button attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
+	variants_url=$(echo "$initial_page" | $pup '#variants-button attr{onclick}' | sed -n "s/.*window\.location='\([^']*\)'.*/\1/p")
 	
 	if [ -z "$variants_url" ]; then
 		echo "Failed to extract variants URL"
