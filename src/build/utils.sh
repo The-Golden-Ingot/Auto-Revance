@@ -22,16 +22,6 @@ red_log() {
 
 #################################################
 
-# Verify pup installation
-if [ ! -f "./pup" ]; then
-    green_log "[+] Installing pup HTML parser..."
-    wget -q -O ./pup.zip https://github.com/ericchiang/pup/releases/download/v0.4.0/pup_v0.4.0_linux_amd64.zip
-    unzip -o "./pup.zip" -d "./" > /dev/null 2>&1
-    chmod +x ./pup
-fi
-
-#################################################
-
 # Download Github assets requirement:
 dl_gh() {
 	if [ $3 == "prerelease" ]; then

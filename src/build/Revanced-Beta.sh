@@ -50,7 +50,7 @@ patch_lightroom() {
 	green_log "[+] Visiting modified URL"
 	curl -sL -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" \
 		 -H "Referer: $versions_page" \
-		 "$modified_url" > /dev/null
+		 "$modified_url" > /dev/nullp
 	
 	# Wait for page "load" (simulated delay)
 	sleep 5

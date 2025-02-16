@@ -30,20 +30,19 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ubuntu:20.04
-      options: --user root --privileged
-    timeout-minutes: 45
+      options: --user root
     strategy:
       matrix:
-        app: ["ggphotos", "lightroom", "soundcloud"]
+        app: ["ggphotos", "lightroom", "soundcloud"]  # Google Photos, Adobe Lightroom, SoundCloud
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
-      - name: Install base dependencies
-        run: |
-          apt-get update
-          apt-get install -y curl wget unzip jq lsb-release gnupg sudo systemd
       - name: Preparing to patch
         uses: ./.github/actions/preparing
+      - name: Install library
+        run: |
+          apt-get update
+          apt-get install -y curl jq wget unzip
       - name: Check github connection
         id: check-gh-rvb
         run: bash src/etc/connection.sh
