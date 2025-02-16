@@ -89,6 +89,25 @@ patch_lightroom() {
 	
 	# Patch the arm64-v8a version
 	patch "lightroom-arm64-v8a-beta" "revanced"
+
+	# Inject native libraries into the patched APK to ensure it has all required .so files
+	patched_apk="./release/lightroom-arm64-v8a-beta.apk"
+	native_lib_src="./download/lightroom-beta/lib/arm64-v8a"
+	if [ -f "$patched_apk" ] && [ -d "$native_lib_src" ]; then
+		echo "[+] Injecting native libraries into patched APK"
+		temp_dir="./temp_lightroom"
+		rm -rf "$temp_dir"
+		mkdir -p "$temp_dir"
+		# Unzip the patched APK into a temporary directory
+		unzip -q "$patched_apk" -d "$temp_dir"
+		# Ensure the lib/arm64-v8a directory exists and then copy over the native libraries
+		mkdir -p "$temp_dir/lib/arm64-v8a"
+		cp -r "$native_lib_src/"* "$temp_dir/lib/arm64-v8a/"
+		# Repack the APK with the injected native libraries
+		( cd "$temp_dir" && zip -r -q "../lightroom-arm64-v8a-beta.apk" . )
+		mv "lightroom-arm64-v8a-beta.apk" "$patched_apk"
+		rm -rf "$temp_dir"
+	fi
 }
 
 patch_soundcloud() {
