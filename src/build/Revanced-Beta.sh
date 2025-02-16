@@ -26,14 +26,17 @@ patch_lightroom() {
 	# First step: Get the version page URL
 	html_content=$(curl -s -A "$USER_AGENT" "https://adobe-lightroom-mobile.en.uptodown.com/android/versions")
 	
-	# Extract the first APK version URL from the HTML content
-	version_url=$(echo "$html_content" | perl -0777 -ne 'print $1 if /<div[^>]*data-url="([^"]+)"[^>]*>(?:(?!<div).)*?<span class="type apk"/s')
+	# Extract the first XAPK version URL from the HTML content
+	version_url=$(echo "$html_content" | perl -0777 -ne 'print $1 if /<div[^>]*data-url="([^"]+)"[^>]*>(?:(?!<div).)*?<span class="type xapk"/s')
 	
 	if [ -z "$version_url" ]; then
 	  echo "No version URL found. Check debug.html for the fetched HTML content."
 	  echo "$html_content" > debug.html
 	  exit 1
 	fi
+	
+	# Add -x suffix to version_url
+	version_url="${version_url}-x"
 	
 	echo "Version page URL: $version_url"
 	
@@ -53,10 +56,17 @@ patch_lightroom() {
 	
 	echo "Final download URL: $final_download_url"
 	
-	# Download the APK with the final download URL
-	req "$final_download_url" "lightroom-beta.apk"
+	# Download the XAPK with the final download URL
+	req "$final_download_url" "lightroom-beta.xapk"
 	
-	patch "lightroom-beta" "revanced"
+	# Extract and process the XAPK bundle
+	unzip "./download/lightroom-beta.xapk" -d "./download/lightroom-beta" > /dev/null 2>&1
+	
+	# Handle the bundle and create arm64-v8a version
+	split_editor "lightroom-beta" "lightroom-arm64-v8a-beta" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
+	
+	# Patch the arm64-v8a version
+	patch "lightroom-arm64-v8a-beta" "revanced"
 }
 
 patch_soundcloud() {
