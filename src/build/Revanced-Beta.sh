@@ -35,19 +35,29 @@ patch_lightroom() {
 		exit 1
 	fi
 	
-	# Step 2: Click variants button and get its page
-	variants_url=$(echo "$initial_page" | $pup '#variants-button attr{onclick}' | sed -n "s/.*window\.location\s*=\s*['\"]\([^'\"]*\)['\"].*/\1/p")
+	# Try multiple extraction methods for variants URL
+	variants_url=$(
+	    # Method 1: Try pup CSS selector
+	    echo "$initial_page" | $pup '#variants-button attr{onclick}' | sed -n "s/.*window\.location\s*=\s*['\"]\([^'\"]*\)['\"].*/\1/p" ||
+	    # Fallback Method 2: Use grep for pattern matching
+	    echo "$initial_page" | grep -Eo "window\.location\s*=\s*['\"][^'\"]+['\"]" | head -1 | sed "s/window\.location\s*=\s*['\"]\([^'\"]*\)['\"]/\1/"
+	)
 	
-	if [ -z "$variants_url" ]; then
-		echo "Initial page content for debugging:"
-		echo "$initial_page" | head -n 20
-		echo "Failed to extract variants URL"
-		exit 1
+	# Add URL validation with multiple fallbacks
+	if [[ ! "$variants_url" =~ ^https:// ]]; then
+	    # Try different URL construction patterns
+	    variants_url="https://adobe-lightroom-mobile.en.uptodown.com$variants_url"
+	    # Second fallback if still invalid
+	    [[ "$variants_url" =~ ^https:// ]] || variants_url="https://adobe-lightroom-mobile.en.uptodown.com/android/variant/$variants_url"
 	fi
 	
-	# Add URL validation
-	if [[ ! "$variants_url" =~ ^https:// ]]; then
-		variants_url="https://adobe-lightroom-mobile.en.uptodown.com$variants_url"
+	# Add verbose logging for debugging
+	green_log "[DEBUG] Variants URL: $variants_url"
+	
+	# Verify URL format before proceeding
+	if [[ ! "$variants_url" =~ ^https://.*uptodown.com ]]; then
+	    red_log "[-] Invalid variants URL format: $variants_url"
+	    exit 1
 	fi
 	
 	variants_page=$(req "$variants_url" -)
