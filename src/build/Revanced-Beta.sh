@@ -30,8 +30,8 @@ patch_lightroom() {
 	# Visit versions page
 	versions_page="https://adobe-lightroom-mobile.en.uptodown.com/android/versions"
 	
-	# Extract data-url from first version item
-	data_url=$(curl -sL "$versions_page" | pup 'div#versions-items-list div.version-item:first-of-type attr{data-url}')
+	# Extract data-url from first version item using pup from utils.sh
+	data_url=$(curl -sL "$versions_page" | $pup 'div#versions-items-list div.version-item:first-of-type attr{data-url}')
 	
 	if [ -z "$data_url" ]; then
 		red_log "[-] Failed to extract data-url from versions page"
