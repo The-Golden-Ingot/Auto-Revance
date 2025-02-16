@@ -26,58 +26,34 @@ patch_lightroom() {
 	revanced_dl
 	# Patch Lightroom:
 	get_patches_key "lightroom"
+	get_apk "com.adobe.lrmobile" "lightroom-beta" "adobe-lightroom-mobile" "adobe/adobe-lightroom-mobile" "APK"
+
+	# Modified variant URL handling
+	variants_url=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/versions" - | $pup '.version a attr{href}')
 	
-	# Step 1: Visit initial download page
-	initial_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/download" -)
-	
-	if [ -z "$initial_page" ]; then
-		echo "Failed to load initial page"
-		exit 1
-	fi
-	
-	# Try multiple extraction methods for variants URL
-	variants_url=$(
-	    # Method 1: Try pup CSS selector
-	    echo "$initial_page" | $pup '#variants-button attr{onclick}' | sed -n "s/.*window\.location\s*=\s*['\"]\([^'\"]*\)['\"].*/\1/p" ||
-	    # Fallback Method 2: Use grep for pattern matching
-	    echo "$initial_page" | grep -Eo "window\.location\s*=\s*['\"][^'\"]+['\"]" | head -1 | sed "s/window\.location\s*=\s*['\"]\([^'\"]*\)['\"]/\1/"
-	)
-	
-	# Add URL validation with multiple fallbacks
-	if [[ ! "$variants_url" =~ ^https:// ]]; then
-	    # Handle different URL patterns
-	    if [[ "$variants_url" =~ ^/ ]]; then
-	        variants_url="https://adobe-lightroom-mobile.en.uptodown.com$variants_url"
-	    else
-	        variants_url="https://adobe-lightroom-mobile.en.uptodown.com/android/variant/$variants_url"
-	    fi
-	fi
-	
-	# Add verbose logging for debugging
 	green_log "[DEBUG] Variants URL: $variants_url"
 	
 	# Verify URL format before proceeding
 	if [[ ! "$variants_url" =~ ^https://.*uptodown.com ]]; then
-	    red_log "[-] Invalid variants URL format: $variants_url"
-	    exit 1
+		red_log "[-] Invalid variants URL format: $variants_url"
+		exit 1
 	fi
-	
+
 	variants_page=$(req "$variants_url" -)
 	
-	# Step 3: Get version-specific URL from variants
+	# Updated CSS selector for version extraction
 	version_url=$(
-	    echo "$variants_page" | $pup '.variant .v-icon attr{onclick}' | 
-	    sed -n "s/.*['\"]\(https[^'\"]*\)['\"].*/\1/p" |
-	    head -1
+		echo "$variants_page" | $pup '.download.available[data-url] attr{data-url}' | 
+		head -1
 	)
 	
 	if [ -z "$version_url" ]; then
-	    red_log "[-] Variants page content for debugging:"
-	    echo "$variants_page" | head -n 40
-	    red_log "[-] Failed to extract version URL from variants page"
-	    exit 1
+		red_log "[-] Variants page content for debugging:"
+		echo "$variants_page" | head -n 40
+		red_log "[-] Failed to extract version URL from variants page"
+		exit 1
 	fi
-	
+
 	# Step 4: Visit version-specific page
 	version_page=$(req "$version_url" -)
 	
