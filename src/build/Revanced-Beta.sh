@@ -24,9 +24,32 @@ patch_lightroom() {
 	revanced_dl
 	# Patch Lightroom:
 	get_patches_key "lightroom"
-	url="https://adobe-lightroom-mobile.en.uptodown.com/android/download/1048999065-x"
-	url="https://dw.uptodown.com/dwn/$(req "$url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')"
-	req "$url" "adobe-photoshop-lightroom-10-2-0.xapk"	
+	
+	# Steps 1-3: Get to the version-specific URL (keeping these for future reference)
+	initial_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/download" -)
+	
+	variants_url=$(echo "$initial_page" | $pup '#variants-button attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
+	
+	if [ -z "$variants_url" ]; then
+		echo "Failed to extract variants URL"
+		exit 1
+	fi
+	
+	variants_page=$(req "$variants_url" -)
+	
+	version_url=$(echo "$variants_page" | $pup '.variant:nth-child(2) > .v-icon attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
+	
+	if [ -z "$version_url" ]; then
+		echo "Failed to extract version URL"
+		exit 1
+	fi
+	
+	# Step 4-7: Use the version-specific URL and download
+	url="https://dw.uptodown.com/dwn/$(req "$version_url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')"
+	req "$url" "lightroom-beta.xapk"
+	
+	# Handle the XAPK bundle
+	split_editor "lightroom-beta.xapk" "lightroom-beta"
 	patch "lightroom-beta" "revanced"
 }
 
