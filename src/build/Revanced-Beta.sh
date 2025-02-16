@@ -67,20 +67,23 @@ patch_lightroom() {
 		exit 1
 	fi
 
-	# Check downloaded file type
-	green_log "[+] Checking downloaded file type"
-	file_type=$(file -b "./download/lightroom-beta.apk")
-	green_log "[DEBUG] File type: $file_type"
+	# Check if downloaded file is HTML instead of APK/XAPK
+	if grep -q "<!DOCTYPE html>" "./download/lightroom-beta.apk"; then
+		red_log "[-] Downloaded file appears to be HTML instead of APK"
+		red_log "[DEBUG] File preview:"
+		head -n 5 "./download/lightroom-beta.apk"
+		exit 1
+	fi
 
 	# Process XAPK bundle
 	green_log "[+] Processing XAPK bundle"
 	mv "./download/lightroom-beta.apk" "./download/lightroom-beta.xapk"
 	
-	# Check if file is a valid zip archive
+	# Check if file is a valid zip archive using unzip
 	if ! unzip -t "./download/lightroom-beta.xapk" > /dev/null 2>&1; then
 		red_log "[-] Downloaded file is not a valid XAPK/ZIP archive"
-		red_log "[DEBUG] File contents (first 100 bytes):"
-		hexdump -C -n 100 "./download/lightroom-beta.xapk"
+		red_log "[DEBUG] File preview (first 100 bytes):"
+		dd if="./download/lightroom-beta.xapk" bs=1 count=100 2>/dev/null | od -c
 		exit 1
 	fi
 	
