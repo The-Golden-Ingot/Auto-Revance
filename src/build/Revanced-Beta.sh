@@ -59,55 +59,14 @@ patch_lightroom() {
 	# Download the XAPK with the final download URL
 	req "$final_download_url" "lightroom-beta.xapk"
 	
-	# Extract and process the XAPK bundle
-	rm -rf "./download/lightroom-beta"
-	mkdir -p "./download/lightroom-beta"
-	unzip -o "./download/lightroom-beta.xapk" -d "./download/lightroom-beta" > /dev/null 2>&1
-	
-	# Attempt to move base.apk to correct location for processing;
-	# if base.apk is not found, search for any .apk file in the extracted folder.
-	if [ -f "./download/lightroom-beta/base.apk" ]; then
-		mv "./download/lightroom-beta/base.apk" "./download/lightroom-beta.apk"
-	else
-		apk_candidate=$(find "./download/lightroom-beta" -maxdepth 1 -iname "*.apk" | head -n 1)
-		if [ -z "$apk_candidate" ]; then
-			echo "No apk file found in XAPK bundle"
-			exit 1
-		else
-			mv "$apk_candidate" "./download/lightroom-beta.apk"
-		fi
-	fi
+	# Process the XAPK bundle using established pattern
+	get_apk "com.adobe.lrmobile" "lightroom-beta" "lightroom" "adobe/lightroom" "Bundle_extract"
 	
 	# Handle the bundle and create arm64-v8a version
 	split_editor "lightroom-beta" "lightroom-arm64-v8a-beta" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
 	
-	# Copy the lib directory to the patched APK directory
-	if [ -d "./download/lightroom-beta/lib/arm64-v8a" ]; then
-		mkdir -p "./release/lib/arm64-v8a"
-		cp -r "./download/lightroom-beta/lib/arm64-v8a" "./release/lib/"
-	fi
-	
 	# Patch the arm64-v8a version
 	patch "lightroom-arm64-v8a-beta" "revanced"
-
-	# Inject native libraries into the patched APK to ensure it has all required .so files
-	patched_apk="./release/lightroom-arm64-v8a-beta.apk"
-	native_lib_src="./download/lightroom-beta/lib/arm64-v8a"
-	if [ -f "$patched_apk" ] && [ -d "$native_lib_src" ]; then
-		echo "[+] Injecting native libraries into patched APK"
-		temp_dir="./temp_lightroom"
-		rm -rf "$temp_dir"
-		mkdir -p "$temp_dir"
-		# Unzip the patched APK into a temporary directory
-		unzip -q "$patched_apk" -d "$temp_dir"
-		# Ensure the lib/arm64-v8a directory exists and then copy over the native libraries
-		mkdir -p "$temp_dir/lib/arm64-v8a"
-		cp -r "$native_lib_src/"* "$temp_dir/lib/arm64-v8a/"
-		# Repack the APK with the injected native libraries
-		( cd "$temp_dir" && zip -r -q "../lightroom-arm64-v8a-beta.apk" . )
-		mv "lightroom-arm64-v8a-beta.apk" "$patched_apk"
-		rm -rf "$temp_dir"
-	fi
 }
 
 patch_soundcloud() {
