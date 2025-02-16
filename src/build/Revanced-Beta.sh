@@ -28,9 +28,8 @@ patch_lightroom() {
 	# Get versions page directly
 	versions_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/versions" -)
 	
-	# Extract second version URL using the data-url attribute from the versions-items-list;
-	# Note: we use :nth-child(2) since the first div is the first version.
-	version_url=$(echo "$versions_page" | $pup '.versions .content div:nth-child(2) attr{data-url}')
+	# Extract first APK version URL using combined selector
+	version_url=$(echo "$versions_page" | $pup '.versions .content div.type.apk:nth-of-type(1) attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
 	
 	if [ -z "$version_url" ]; then
 		echo "Failed to extract version URL"
@@ -39,10 +38,8 @@ patch_lightroom() {
 	
 	# Download the specific version's detailed page and extract the final download URL from the button
 	url="https://dw.uptodown.com/dwn/$(req "$version_url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')"
-	req "$url" "lightroom-beta.xapk"
+	req "$url" "lightroom-beta.apk"
 	
-	# Handle the XAPK bundle
-	split_editor "lightroom-beta.xapk" "lightroom-beta"
 	patch "lightroom-beta" "revanced"
 }
 
