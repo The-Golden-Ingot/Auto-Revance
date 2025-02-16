@@ -76,14 +76,26 @@ patch_lightroom() {
 		fi
 	fi
 	
+	# Preserve native libraries
+	if [ -d "./download/lightroom-beta/lib/arm64-v8a" ]; then
+		mkdir -p "./download/lib/arm64-v8a"
+		cp -r "./download/lightroom-beta/lib/arm64-v8a/"* "./download/lib/arm64-v8a/"
+	fi
+	
 	# Handle the bundle and create arm64-v8a version
 	split_editor "lightroom-beta" "lightroom-arm64-v8a-beta" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
+	
+	# Copy native libraries to the final APK
+	if [ -d "./download/lib/arm64-v8a" ]; then
+		mkdir -p "./release/lib/arm64-v8a"
+		cp -r "./download/lib/arm64-v8a/"* "./release/lib/arm64-v8a/"
+	fi
 	
 	# Patch the arm64-v8a version
 	patch "lightroom-arm64-v8a-beta" "revanced"
 	
 	# Cleanup
-	rm -rf "./download/lightroom-beta"
+	rm -rf "./download/lightroom-beta" "./download/lib"
 }
 
 patch_soundcloud() {
