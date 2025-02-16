@@ -25,26 +25,18 @@ patch_lightroom() {
 	# Patch Lightroom:
 	get_patches_key "lightroom"
 	
-	# Steps 1-3: Get to the version-specific URL (keeping these for future reference)
-	initial_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/versions" -)
+	# Get versions page directly
+	versions_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/versions" -)
 	
-	variants_url=$(echo "$initial_page" | $pup '#variants-button attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
-	
-	if [ -z "$variants_url" ]; then
-		echo "Failed to extract variants URL"
-		exit 1
-	fi
-	
-	variants_page=$(req "$variants_url" -)
-	
-	version_url=$(echo "$variants_page" | $pup '.variant:nth-child(2) > .v-icon attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
+	# Extract second version URL using proper CSS selector
+	version_url=$(echo "$versions_page" | $pup '.versions .content div.version:nth-child(2) div[onclick] attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
 	
 	if [ -z "$version_url" ]; then
 		echo "Failed to extract version URL"
 		exit 1
 	fi
 	
-	# Step 4-7: Use the version-specific URL and download
+	# Download the specific version
 	url="https://dw.uptodown.com/dwn/$(req "$version_url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')"
 	req "$url" "lightroom-beta.xapk"
 	
