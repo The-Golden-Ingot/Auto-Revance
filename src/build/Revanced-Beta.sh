@@ -32,10 +32,18 @@ patch_lightroom() {
 	green_log "[+] Fetching versions page"
 	html_content=$(curl -sL -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" "$versions_page")
 	
-	# Improved version name extraction
-	version_name=$(echo "$html_content" | $pup 'div#versions-items-list div.version:first-of-type text{}' | xargs | tr -cd '[:alnum:].-')
-	[ -z "$version_name" ] && { red_log "[-] Failed to extract version name"; exit 1; }
-
+	# Improved version extraction with debug
+	version_name=$(echo "$html_content" | $pup 'div#versions-items-list div.version:first-of-type span:first-child text{}' | xargs)
+	[ -z "$version_name" ] && { 
+		red_log "[-] Failed to extract version name. Raw HTML snippet:"
+		echo "$html_content" | grep -A10 'div#versions-items-list' | head -n 20
+		exit 1
+	}
+	
+	# Sanitize version name (allow numbers, dots, and dashes)
+	version_name=$(echo "$version_name" | tr -cd '[:digit:].-')
+	green_log "[DEBUG] Sanitized version: $version_name"
+	
 	data_url=$(echo "$html_content" | $pup 'div#versions-items-list div[data-url]:first-of-type attr{data-url}')
 	[ -z "$data_url" ] && { red_log "[-] Failed to extract data-url"; exit 1; }
 
