@@ -27,14 +27,18 @@ patch_lightroom() {
 	# Patch Lightroom:
 	get_patches_key "lightroom"
 	
-	# Visit versions page
+	# Visit versions page with proper headers
 	versions_page="https://adobe-lightroom-mobile.en.uptodown.com/android/versions"
+	green_log "[+] Fetching versions page"
+	html_content=$(curl -sL -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" "$versions_page")
 	
-	# Extract data-url from first version item using pup from utils.sh
-	data_url=$(curl -sL "$versions_page" | $pup 'div#versions-items-list div.version-item:first-of-type attr{data-url}')
+	# New selector for data-url
+	data_url=$(echo "$html_content" | $pup 'div#versions-items-list div[data-url]:first-of-type attr{data-url}')
 	
 	if [ -z "$data_url" ]; then
 		red_log "[-] Failed to extract data-url from versions page"
+		red_log "[DEBUG] HTML content snippet:"
+		echo "$html_content" | grep -A20 'id="versions-items-list"' | head -n 30
 		exit 1
 	fi
 	
@@ -42,9 +46,11 @@ patch_lightroom() {
 	modified_url="${data_url}-x"
 	green_log "[DEBUG] Modified URL: $modified_url"
 	
-	# First visit the modified URL
+	# First visit the modified URL with headers
 	green_log "[+] Visiting modified URL"
-	req "$modified_url" -
+	curl -sL -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" \
+		 -H "Referer: $versions_page" \
+		 "$modified_url" > /dev/null
 	
 	# Wait for page "load" (simulated delay)
 	sleep 5
@@ -52,6 +58,7 @@ patch_lightroom() {
 	# Download using modified URL with required headers
 	green_log "[+] Downloading Lightroom from modified URL"
 	wget -q --show-progress --content-disposition \
+		--header="User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" \
 		--header="Referer: $modified_url" \
 		"$modified_url" -O "./download/lightroom-beta.apk"
 	
