@@ -67,12 +67,38 @@ patch_lightroom() {
 		exit 1
 	fi
 
+	# Check downloaded file type
+	green_log "[+] Checking downloaded file type"
+	file_type=$(file -b "./download/lightroom-beta.apk")
+	green_log "[DEBUG] File type: $file_type"
+
 	# Process XAPK bundle
 	green_log "[+] Processing XAPK bundle"
 	mv "./download/lightroom-beta.apk" "./download/lightroom-beta.xapk"
+	
+	# Check if file is a valid zip archive
+	if ! unzip -t "./download/lightroom-beta.xapk" > /dev/null 2>&1; then
+		red_log "[-] Downloaded file is not a valid XAPK/ZIP archive"
+		red_log "[DEBUG] File contents (first 100 bytes):"
+		hexdump -C -n 100 "./download/lightroom-beta.xapk"
+		exit 1
+	fi
+	
+	green_log "[+] Unzipping XAPK bundle"
+	unzip -l "./download/lightroom-beta.xapk" | grep ".apk" || {
+		red_log "[-] No APK files found in bundle"
+		red_log "[DEBUG] Bundle contents:"
+		unzip -l "./download/lightroom-beta.xapk"
+		exit 1
+	}
+	
 	unzip "./download/lightroom-beta.xapk" -d "./download/lightroom-beta" > /dev/null 2>&1
 	
-	# Extract the actual APK from bundle (search in first level only)
+	# List extracted contents
+	green_log "[DEBUG] Extracted contents:"
+	ls -la "./download/lightroom-beta/"
+	
+	# Extract the actual APK from bundle
 	green_log "[+] Extracting main APK from bundle"
 	find "./download/lightroom-beta" -maxdepth 1 -name "*.apk" -exec mv {} "./download/lightroom-beta.apk" \;
 	
