@@ -28,8 +28,8 @@ patch_lightroom() {
 	# Get versions page directly
 	versions_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/versions" -)
 	
-	# Extract first APK version URL using combined selector
-	version_url=$(echo "$versions_page" | $pup '.versions .content div.type.apk:nth-of-type(1) attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
+	# Extract first APK version URL using data-url attribute
+	version_url=$(echo "$versions_page" | $pup '.versions .content div.type.apk:nth-of-type(1) attr{data-url}')
 	
 	if [ -z "$version_url" ]; then
 		echo "Failed to extract version URL"
