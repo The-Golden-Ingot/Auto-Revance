@@ -31,19 +31,19 @@ jobs:
     container:
       image: ubuntu:20.04
       options: --user root
-    timeout-minutes: 45  # Increased timeout
+    timeout-minutes: 45
     strategy:
       matrix:
-        app: ["ggphotos", "lightroom", "soundcloud"]  # Google Photos, Adobe Lightroom, SoundCloud
+        app: ["ggphotos", "lightroom", "soundcloud"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
-      - name: Preparing to patch
-        uses: ./.github/actions/preparing
-      - name: Install library
+      - name: Install base dependencies
         run: |
           apt-get update
-          apt-get install -y curl jq wget unzip
+          apt-get install -y curl wget unzip jq lsb-release gnupg sudo systemd
+      - name: Preparing to patch
+        uses: ./.github/actions/preparing
       - name: Check github connection
         id: check-gh-rvb
         run: bash src/etc/connection.sh
