@@ -5,6 +5,22 @@ curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | sudo gpg --yes --dearmo
 echo "deb [signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflare-client.list
 sudo apt-get update && sudo apt-get install -y cloudflare-warp
 
+# Function to check if nft is available and if we're allowed to modify firewall rules.
+can_modify_firewall() {
+    if ! command -v nft &>/dev/null; then
+        echo "nft command not found."
+        return 1
+    fi
+
+    # Try a harmless nft command (or check capabilities) as a proxy for permission.
+    if ! sudo nft list tables &>/dev/null; then
+        echo "Insufficient privileges to modify firewall rules."
+        return 1
+    fi
+
+    return 0
+}
+
 # Start warp-svc without systemd in container
 if [ ! -d "/run/systemd/system" ]; then
     sudo mkdir -p /var/run/warp
@@ -29,7 +45,7 @@ else
     echo -e "\e[31m[-] Can't install Cloudflare Warp\e[0m"
 fi
 
-# Test connection to Uptodown
+# Test connection to Uptodown (proceed only if firewall can be adjusted or if not needed)
 if ! curl -s --max-time 10 https://www.uptodown.com >/dev/null; then
     echo -e "\e[31m[-] Failed to connect to Uptodown\e[0m"
     echo "Network debug info:"

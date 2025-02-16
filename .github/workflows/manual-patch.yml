@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ubuntu:20.04
-      options: --user root
+      options: --user root --privileged
     timeout-minutes: 45
     strategy:
       matrix:
