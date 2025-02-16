@@ -37,7 +37,16 @@ patch_lightroom() {
 	fi
 	
 	# Download the specific version's detailed page and extract the final download URL from the button
-	url="https://dw.uptodown.com$(req "$version_url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')"
+	download_page=$(req "$version_url" -)
+	download_url=$(echo "$download_page" | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')
+	
+	if [ -z "$download_url" ]; then
+		echo "Failed to extract download URL"
+		exit 1
+	fi
+	
+	# Use the direct download domain
+	url="https://dw.uptodown.com$download_url"
 	req "$url" "lightroom-beta.apk"
 	
 	patch "lightroom-beta" "revanced"
