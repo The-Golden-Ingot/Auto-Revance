@@ -31,6 +31,9 @@ jobs:
     container:
       image: ubuntu:20.04
       options: --user root
+    strategy:
+      matrix:
+        function: [3, 7]  # Only functions 3 (Google Photos) and 7 (Lightroom) from Revanced-Beta.sh
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
@@ -46,11 +49,11 @@ jobs:
       - name: Patch apk
         id: patch-rvb
         if: steps.check-gh-rvb.outputs.internet_error == '0'
-        run: bash src/build/Revanced-Beta.sh ${{ matrix.run }}
+        run: bash src/build/Revanced-Beta.sh ${{ matrix.function }}
       - name: Cache
         uses: actions/upload-artifact@v4
         with:
-          name: Cache_rv_beta
+          name: Cache_rv_beta_${{ matrix.function }}
           path: |
             ./release/*.apk
   release_rv_beta:
@@ -60,11 +63,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
-      - name: Cache
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: Cache_rv_beta
+          pattern: Cache_rv_beta_*
           path: ./release
+          merge-multiple: true
       - name: Releasing APK files
         uses: ./.github/actions/release
 
