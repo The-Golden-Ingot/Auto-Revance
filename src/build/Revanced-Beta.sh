@@ -30,12 +30,24 @@ patch_lightroom() {
 	# Step 1: Visit initial download page
 	initial_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/download" -)
 	
+	if [ -z "$initial_page" ]; then
+		echo "Failed to load initial page"
+		exit 1
+	fi
+	
 	# Step 2: Click variants button and get its page
-	variants_url=$(echo "$initial_page" | $pup '#variants-button attr{onclick}' | sed -n "s/.*window\.location='\([^']*\)'.*/\1/p")
+	variants_url=$(echo "$initial_page" | $pup '#variants-button attr{onclick}' | sed -n "s/.*window\.location\s*=\s*['\"]\([^'\"]*\)['\"].*/\1/p")
 	
 	if [ -z "$variants_url" ]; then
+		echo "Initial page content for debugging:"
+		echo "$initial_page" | head -n 20
 		echo "Failed to extract variants URL"
 		exit 1
+	fi
+	
+	# Add URL validation
+	if [[ ! "$variants_url" =~ ^https:// ]]; then
+		variants_url="https://adobe-lightroom-mobile.en.uptodown.com$variants_url"
 	fi
 	
 	variants_page=$(req "$variants_url" -)
@@ -52,7 +64,7 @@ patch_lightroom() {
 	version_page=$(req "$version_url" -)
 	
 	# Step 5: Wait required time before getting download button
-	sleep 5  # Wait 5 seconds as specified
+	sleep 10  # Increased from 5 to 10 seconds
 	
 	# Step 6: Get final download URL from the button
 	download_url=$(echo "$version_page" | $pup 'button#detail-download-button attr{data-url}' | tr -d '[:space:]')
