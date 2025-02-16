@@ -7,7 +7,7 @@ revanced_dl(){
  	dl_gh "revanced-cli" "revanced" "latest"
 }
 
-3() {
+patch_ggphotos() {
 	revanced_dl
 	# Patch Google photos:
 	# Arm64-v8a
@@ -20,7 +20,7 @@ revanced_dl(){
 	patch "gg-photos-armeabi-v7a-beta" "revanced"
 }
 
-7() {
+patch_lightroom() {
 	revanced_dl
 	# Patch Lightroom:
 	get_patches_key "lightroom"
@@ -32,9 +32,9 @@ revanced_dl(){
 
 case "$1" in
     3)
-        3
+        patch_ggphotos
         ;;
     7)
-        7
+        patch_lightroom
         ;;
 esac
