@@ -60,10 +60,26 @@ patch_lightroom() {
 	req "$final_download_url" "lightroom-beta.xapk"
 	
 	# Extract and process the XAPK bundle
-	unzip "./download/lightroom-beta.xapk" -d "./download/lightroom-beta" > /dev/null 2>&1
+	rm -rf "./download/lightroom-beta"
+	mkdir -p "./download/lightroom-beta"
+	unzip -o "./download/lightroom-beta.xapk" -d "./download/lightroom-beta" > /dev/null 2>&1
+	
+	# Move base.apk to correct location for processing
+	if [ -f "./download/lightroom-beta/base.apk" ]; then
+		mv "./download/lightroom-beta/base.apk" "./download/lightroom-beta.apk"
+	else
+		echo "base.apk not found in XAPK bundle"
+		exit 1
+	fi
 	
 	# Handle the bundle and create arm64-v8a version
 	split_editor "lightroom-beta" "lightroom-arm64-v8a-beta" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
+	
+	# Copy the lib directory to the patched APK directory
+	if [ -d "./download/lightroom-beta/lib/arm64-v8a" ]; then
+		mkdir -p "./release/lib/arm64-v8a"
+		cp -r "./download/lightroom-beta/lib/arm64-v8a" "./release/lib/"
+	fi
 	
 	# Patch the arm64-v8a version
 	patch "lightroom-arm64-v8a-beta" "revanced"
