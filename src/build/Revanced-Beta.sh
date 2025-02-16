@@ -60,8 +60,14 @@ patch_lightroom() {
 	
 	echo "Debug: Download URL = $download_url"
 	
-	# Use the direct download domain
-	url="https://dw.uptodown.com$download_url"
+	# Use the direct download domain only if download_url is relative
+	if [[ "$download_url" =~ ^https?:// ]]; then
+	    url="$download_url"
+	else
+	    url="https://dw.uptodown.com$download_url"
+	fi
+	
+	echo "Debug: Final URL = $url"
 	req "$url" "lightroom-beta.apk"
 	
 	patch "lightroom-beta" "revanced"
