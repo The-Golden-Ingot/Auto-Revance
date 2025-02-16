@@ -30,11 +30,23 @@ patch_lightroom() {
 	patch "lightroom-beta" "revanced"
 }
 
+patch_soundcloud() {
+	revanced_dl
+	# Patch SoundCloud:
+	get_patches_key "soundcloud"
+	get_apk "com.soundcloud.android" "soundcloud-beta" "soundcloud-soundcloud" "soundcloud/soundcloud-soundcloud/soundcloud-play-music-songs" "Bundle_extract"
+	split_editor "soundcloud-beta" "soundcloud-beta"
+	patch "soundcloud-beta" "revanced"
+}
+
 case "$1" in
-    3)
+    "ggphotos")
         patch_ggphotos
         ;;
-    7)
+    "lightroom")
         patch_lightroom
+        ;;
+    "soundcloud")
+        patch_soundcloud
         ;;
 esac

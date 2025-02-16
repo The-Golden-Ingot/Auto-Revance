@@ -33,7 +33,7 @@ jobs:
       options: --user root
     strategy:
       matrix:
-        function: [3, 7]  # Only functions 3 (Google Photos) and 7 (Lightroom) from Revanced-Beta.sh
+        app: ["ggphotos", "lightroom", "soundcloud"]  # Google Photos, Adobe Lightroom, SoundCloud
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
@@ -49,11 +49,11 @@ jobs:
       - name: Patch apk
         id: patch-rvb
         if: steps.check-gh-rvb.outputs.internet_error == '0'
-        run: bash src/build/Revanced-Beta.sh ${{ matrix.function }}
+        run: bash src/build/Revanced-Beta.sh ${{ matrix.app }}
       - name: Cache
         uses: actions/upload-artifact@v4
         with:
-          name: Cache_rv_beta_${{ matrix.function }}
+          name: Cache_rv_beta_${{ matrix.app }}
           path: |
             ./release/*.apk
   release_rv_beta:
@@ -94,7 +94,7 @@ jobs:
       - name: Patch apk
         id: patch-rve-anddea-beta
         if: steps.check-gh-rve-anddea-beta.outputs.internet_error == '0'
-        run: bash src/build/Anddea-Revanced-Extended-Beta.sh
+        run: bash src/build/Anddea-Revanced-Extended-Beta.sh youtube-rve
       - name: Cache
         uses: actions/upload-artifact@v4
         with:
@@ -182,7 +182,7 @@ jobs:
       - name: Patch apk
         id: patch-rv-experiments
         if: steps.check-gh-rv-experiments.outputs.internet_error == '0'
-        run: bash src/build/Revanced-Experiment.sh
+        run: bash src/build/Revanced-Experiment.sh instagram-rve
       - name: Cache
         uses: actions/upload-artifact@v4
         with:
