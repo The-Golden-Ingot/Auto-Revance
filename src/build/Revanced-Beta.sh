@@ -53,18 +53,22 @@ patch_lightroom() {
 	download_path=$(req "$modified_url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')
 	final_url="https://dw.uptodown.com/dwn/$download_path"
 	
+	# Extract filename from the download path
+	xapk_name=$(basename "$download_path")
+	green_log "[DEBUG] XAPK filename: $xapk_name"
+	
 	# Download using proper Uptodown flow
 	green_log "[+] Downloading Lightroom XAPK"
-	req "$final_url" "./download/lightroom-beta.xapk"
+	req "$final_url" "./download/$xapk_name"
 	
-	if [ ! -f "./download/lightroom-beta.xapk" ]; then
+	if [ ! -f "./download/$xapk_name" ]; then
 		red_log "[-] Failed to download Lightroom XAPK"
 		exit 1
 	fi
 
-	# Existing processing code
+	# Process XAPK bundle
 	green_log "[+] Processing XAPK bundle"
-	unzip "./download/lightroom-beta.xapk" -d "./download/lightroom-beta" > /dev/null 2>&1
+	unzip "./download/$xapk_name" -d "./download/lightroom-beta" > /dev/null 2>&1
 	find "./download/lightroom-beta" -maxdepth 1 -name "*.apk" -exec mv {} "./download/lightroom-beta.apk" \;
 	
 	if [ ! -f "./download/lightroom-beta.apk" ]; then
@@ -72,7 +76,7 @@ patch_lightroom() {
 		exit 1
 	fi
 	
-	rm -rf "./download/lightroom-beta.xapk" "./download/lightroom-beta"
+	rm -rf "./download/$xapk_name" "./download/lightroom-beta"
 	patch "lightroom-beta" "revanced"
 }
 
