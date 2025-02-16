@@ -26,7 +26,7 @@ patch_lightroom() {
 	get_patches_key "lightroom"
 	
 	# Steps 1-3: Get to the version-specific URL (keeping these for future reference)
-	initial_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/download" -)
+	initial_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/download/versions" -)
 	
 	variants_url=$(echo "$initial_page" | $pup '#variants-button attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
 	
