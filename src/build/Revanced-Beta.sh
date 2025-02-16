@@ -56,14 +56,34 @@ patch_lightroom() {
 	
 	echo "Final download URL: $final_download_url"
 	
-	# Download and process the XAPK bundle
-	get_apk "com.adobe.lrmobile" "lightroom-beta" "lightroom" "adobe/lightroom" "Bundle_extract" "" "" "$final_download_url"
+	# Download the XAPK
+	mkdir -p "./download/lightroom-beta"
+	req "$final_download_url" "lightroom-beta.xapk"
+	
+	# Extract the XAPK
+	unzip -o "./download/lightroom-beta.xapk" -d "./download/lightroom-beta" > /dev/null 2>&1
+	
+	# Move base.apk to correct location
+	if [ -f "./download/lightroom-beta/base.apk" ]; then
+		mv "./download/lightroom-beta/base.apk" "./download/lightroom-beta.apk"
+	else
+		apk_candidate=$(find "./download/lightroom-beta" -maxdepth 1 -iname "*.apk" | head -n 1)
+		if [ -n "$apk_candidate" ]; then
+			mv "$apk_candidate" "./download/lightroom-beta.apk"
+		else
+			echo "No APK found in the XAPK"
+			exit 1
+		fi
+	fi
 	
 	# Handle the bundle and create arm64-v8a version
 	split_editor "lightroom-beta" "lightroom-arm64-v8a-beta" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
 	
 	# Patch the arm64-v8a version
 	patch "lightroom-arm64-v8a-beta" "revanced"
+	
+	# Cleanup
+	rm -rf "./download/lightroom-beta"
 }
 
 patch_soundcloud() {
