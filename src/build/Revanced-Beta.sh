@@ -28,8 +28,8 @@ patch_lightroom() {
 	# Get versions page directly
 	versions_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/versions" -)
 	
-	# Extract second version URL using proper CSS selector
-	version_url=$(echo "$versions_page" | $pup '.versions .content div.version:nth-child(2) div[onclick] attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
+	# Simplified selector to match the actual HTML structure
+	version_url=$(echo "$versions_page" | $pup '.versions .content div:nth-child(2) attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
 	
 	if [ -z "$version_url" ]; then
 		echo "Failed to extract version URL"
