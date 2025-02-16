@@ -66,7 +66,16 @@ patch_lightroom() {
 		red_log "[-] Failed to download Lightroom APK"
 		exit 1
 	fi
-	
+
+	# Process XAPK bundle
+	green_log "[+] Extracting Lightroom bundle"
+	unzip "./download/lightroom-beta.apk" -d "./download/lightroom-beta" > /dev/null 2>&1
+	green_log "[+] Merging splits"
+	java -jar $APKEditor m -i "./download/lightroom-beta" -o "./download/lightroom-beta.apk" > /dev/null 2>&1
+	rm -rf "./download/lightroom-beta"
+
+	# Now patch the merged APK
+	get_patches_key "lightroom"
 	patch "lightroom-beta" "revanced"
 }
 
