@@ -56,11 +56,8 @@ patch_lightroom() {
 	
 	echo "Final download URL: $final_download_url"
 	
-	# Download the XAPK with the final download URL
-	req "$final_download_url" "lightroom-beta.xapk"
-	
-	# Process the XAPK bundle using established pattern
-	get_apk "com.adobe.lrmobile" "lightroom-beta" "lightroom" "adobe/lightroom" "Bundle_extract"
+	# Download and process the XAPK bundle
+	get_apk "com.adobe.lrmobile" "lightroom-beta" "lightroom" "adobe/lightroom" "Bundle_extract" "" "" "$final_download_url"
 	
 	# Handle the bundle and create arm64-v8a version
 	split_editor "lightroom-beta" "lightroom-arm64-v8a-beta" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
