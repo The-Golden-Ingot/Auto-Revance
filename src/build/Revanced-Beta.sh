@@ -25,50 +25,41 @@ patch_lightroom() {
 	# Patch Lightroom:
 	get_patches_key "lightroom"
 	
-	# Get versions page directly
-	versions_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/versions" -)
+	# Set a common browser user agent
+	USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	
-	# Extract first APK version URL using data-url attribute and prepend domain
-	version_url="https://adobe-lightroom-mobile.en.uptodown.com$(echo "$versions_page" | $pup '.versions .content div.type.apk:nth-of-type(1) attr{data-url}')"
+	# First step: Get the version page URL
+	html_content=$(curl -s -A "$USER_AGENT" "https://adobe-lightroom-mobile.en.uptodown.com/android/versions")
+	
+	# Extract the first APK version URL from the HTML content
+	version_url=$(echo "$html_content" | perl -0777 -ne 'print $1 if /<div[^>]*data-url="([^"]+)"[^>]*>(?:(?!<div).)*?<span class="type apk"/s')
 	
 	if [ -z "$version_url" ]; then
-		echo "Failed to extract version URL"
-		exit 1
+	  echo "No version URL found. Check debug.html for the fetched HTML content."
+	  echo "$html_content" > debug.html
+	  exit 1
 	fi
 	
-	echo "Debug: Version URL = $version_url"
+	echo "Version page URL: $version_url"
 	
-	# Download the specific version's detailed page and extract the final download URL from the button
-	download_page=$(req "$version_url" -)
+	# Second step: Get the download button data-url
+	detail_page=$(curl -s -A "$USER_AGENT" "$version_url")
 	
-	# Save the download page for debugging
-	echo "$download_page" > download_page.html
+	# Extract the data-url from the download button using a more precise pattern
+	download_token=$(echo "$detail_page" | perl -0777 -ne 'print $1 if /id="detail-download-button"[^>]+data-url="([^"]+)"/s')
 	
-	# Try different selectors for the download button
-	download_url=$(echo "$download_page" | $pup 'a.button.download attr{href}')
-	
-	if [ -z "$download_url" ]; then
-		echo "Failed to extract download URL using first selector, trying alternative..."
-		download_url=$(echo "$download_page" | $pup 'a[data-url] attr{data-url}')
+	if [ -z "$download_token" ]; then
+	  echo "No download token found."
+	  exit 1
 	fi
 	
-	if [ -z "$download_url" ]; then
-		echo "Failed to extract download URL"
-		echo "Download page content saved to download_page.html for inspection"
-		exit 1
-	fi
+	# Construct the final download URL
+	final_download_url="https://dw.uptodown.com/dwn/$download_token"
 	
-	echo "Debug: Download URL = $download_url"
+	echo "Final download URL: $final_download_url"
 	
-	# Use the direct download domain only if download_url is relative
-	if [[ "$download_url" =~ ^https?:// ]]; then
-	    url="$download_url"
-	else
-	    url="https://dw.uptodown.com$download_url"
-	fi
-	
-	echo "Debug: Final URL = $url"
-	req "$url" "lightroom-beta.apk"
+	# Download the APK with the final download URL
+	req "$final_download_url" "lightroom-beta.apk"
 	
 	patch "lightroom-beta" "revanced"
 }
