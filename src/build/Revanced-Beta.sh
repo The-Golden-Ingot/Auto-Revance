@@ -24,9 +24,23 @@ patch_lightroom() {
 	revanced_dl
 	# Patch Lightroom:
 	get_patches_key "lightroom"
-	url="https://adobe-lightroom-mobile.en.uptodown.com/android/download"
-	url="https://dw.uptodown.com/dwn/$(req "$url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')"
-	req "$url" "lightroom-beta.apk"	
+	
+	# Step 1: Visit initial download page and get version-specific URL
+	initial_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/download" -)
+	version_url=$(echo "$initial_page" | $pup '.variant:nth-child(2) > .v-icon attr{onclick}' | grep -o 'https://[^"]*')
+	
+	# Step 2: Visit version-specific page
+	req "$version_url" - > /dev/null
+	
+	# Step 3: Wait required time before getting download button
+	sleep 5  # Wait 5 seconds as specified
+	
+	# Step 4: Get final download URL from the button
+	version_page=$(req "$version_url" -)
+	download_url="https://dw.uptodown.com/dwn/$(echo "$version_page" | $pup 'button#detail-download-button attr{data-url}')"
+	
+	# Step 5: Download the APK
+	req "$download_url" "lightroom-beta.apk"
 	patch "lightroom-beta" "revanced"
 }
 
