@@ -32,8 +32,9 @@ patch_lightroom() {
 	green_log "[+] Fetching versions page"
 	html_content=$(curl -sL -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" "$versions_page")
 	
-	# Extract latest version URL
+	# Extract latest version URL and name
 	data_url=$(echo "$html_content" | $pup 'div#versions-items-list div[data-url]:first-of-type attr{data-url}')
+	version_name=$(echo "$html_content" | $pup 'div#versions-items-list div.version:first-of-type text{}' | tr -d ' ')
 	
 	if [ -z "$data_url" ]; then
 		red_log "[-] Failed to extract data-url from versions page"
@@ -48,18 +49,23 @@ patch_lightroom() {
 	green_log "[+] Visiting modified URL"
 	req "$modified_url" - > /dev/null
 
+	# Wait 5 seconds before getting download button
+	green_log "[+] Waiting for download button..."
+	sleep 5
+
 	# Get final download URL from download button
 	green_log "[+] Resolving download URL"
 	download_path=$(req "$modified_url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')
 	final_url="https://dw.uptodown.com/dwn/$download_path"
 	
-	# Extract filename from the download path
-	xapk_name=$(basename "$download_path")
+	# Use version name for XAPK
+	xapk_name="adobe-lightroom-${version_name}.xapk"
 	green_log "[DEBUG] XAPK filename: $xapk_name"
 	
 	# Download using proper Uptodown flow
 	green_log "[+] Downloading Lightroom XAPK"
-	req "$final_url" "./download/$xapk_name"
+	wget -q --show-progress --content-disposition \
+		-O "./download/$xapk_name" "$final_url"
 	
 	if [ ! -f "./download/$xapk_name" ]; then
 		red_log "[-] Failed to download Lightroom XAPK"
