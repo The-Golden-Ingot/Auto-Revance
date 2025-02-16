@@ -67,14 +67,19 @@ patch_lightroom() {
 		exit 1
 	fi
 
-	# Process XAPK bundle
-	green_log "[+] Extracting Lightroom bundle"
-	unzip "./download/lightroom-beta.apk" -d "./download/lightroom-beta" > /dev/null 2>&1
-	green_log "[+] Merging splits"
-	java -jar $APKEditor m -i "./download/lightroom-beta" -o "./download/lightroom-beta.apk" > /dev/null 2>&1
-	rm -rf "./download/lightroom-beta"
+	# Rename to .xapk and process as bundle
+	green_log "[+] Processing XAPK bundle"
+	mv "./download/lightroom-beta.apk" "./download/lightroom-beta.xapk"
+	unzip "./download/lightroom-beta.xapk" -d "./download/lightroom-beta" > /dev/null 2>&1
+	
+	# Extract the actual APK from bundle
+	green_log "[+] Extracting main APK from bundle"
+	find "./download/lightroom-beta" -name "*.apk" -exec mv {} "./download/lightroom-beta.apk" \;
+	
+	# Cleanup temporary files
+	rm -rf "./download/lightroom-beta.xapk" "./download/lightroom-beta"
 
-	# Now patch the merged APK
+	# Now patch normally
 	get_patches_key "lightroom"
 	patch "lightroom-beta" "revanced"
 }
