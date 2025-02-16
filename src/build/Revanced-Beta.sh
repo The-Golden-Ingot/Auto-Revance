@@ -27,20 +27,29 @@ patch_lightroom() {
 	
 	# Step 1: Visit initial download page and get version-specific URL
 	initial_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/download" -)
-	version_url=$(echo "$initial_page" | $pup '.variant:nth-child(2) > .v-icon attr{onclick}' | grep -o 'https://[^"]*')
+	version_url=$(echo "$initial_page" | $pup '.variant:nth-child(2) > .v-icon attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
+	
+	if [ -z "$version_url" ]; then
+		echo "Failed to extract version URL"
+		exit 1
+	fi
 	
 	# Step 2: Visit version-specific page
-	req "$version_url" - > /dev/null
+	version_page=$(req "$version_url" -)
 	
 	# Step 3: Wait required time before getting download button
 	sleep 5  # Wait 5 seconds as specified
 	
 	# Step 4: Get final download URL from the button
-	version_page=$(req "$version_url" -)
-	download_url="https://dw.uptodown.com/dwn/$(echo "$version_page" | $pup 'button#detail-download-button attr{data-url}')"
+	download_url=$(echo "$version_page" | $pup 'button#detail-download-button attr{data-url}' | tr -d '[:space:]')
+	
+	if [ -z "$download_url" ]; then
+		echo "Failed to extract download URL"
+		exit 1
+	fi
 	
 	# Step 5: Download the APK
-	req "$download_url" "lightroom-beta.apk"
+	req "https://dw.uptodown.com/dwn/$download_url" "lightroom-beta.apk"
 	patch "lightroom-beta" "revanced"
 }
 
