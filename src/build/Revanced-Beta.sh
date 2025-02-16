@@ -64,12 +64,18 @@ patch_lightroom() {
 	mkdir -p "./download/lightroom-beta"
 	unzip -o "./download/lightroom-beta.xapk" -d "./download/lightroom-beta" > /dev/null 2>&1
 	
-	# Move base.apk to correct location for processing
+	# Attempt to move base.apk to correct location for processing;
+	# if base.apk is not found, search for any .apk file in the extracted folder.
 	if [ -f "./download/lightroom-beta/base.apk" ]; then
 		mv "./download/lightroom-beta/base.apk" "./download/lightroom-beta.apk"
 	else
-		echo "base.apk not found in XAPK bundle"
-		exit 1
+		apk_candidate=$(find "./download/lightroom-beta" -maxdepth 1 -iname "*.apk" | head -n 1)
+		if [ -z "$apk_candidate" ]; then
+			echo "No apk file found in XAPK bundle"
+			exit 1
+		else
+			mv "$apk_candidate" "./download/lightroom-beta.apk"
+		fi
 	fi
 	
 	# Handle the bundle and create arm64-v8a version
