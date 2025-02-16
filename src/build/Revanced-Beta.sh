@@ -45,10 +45,12 @@ patch_lightroom() {
 	
 	# Add URL validation with multiple fallbacks
 	if [[ ! "$variants_url" =~ ^https:// ]]; then
-	    # Try different URL construction patterns
-	    variants_url="https://adobe-lightroom-mobile.en.uptodown.com$variants_url"
-	    # Second fallback if still invalid
-	    [[ "$variants_url" =~ ^https:// ]] || variants_url="https://adobe-lightroom-mobile.en.uptodown.com/android/variant/$variants_url"
+	    # Handle different URL patterns
+	    if [[ "$variants_url" =~ ^/ ]]; then
+	        variants_url="https://adobe-lightroom-mobile.en.uptodown.com$variants_url"
+	    else
+	        variants_url="https://adobe-lightroom-mobile.en.uptodown.com/android/variant/$variants_url"
+	    fi
 	fi
 	
 	# Add verbose logging for debugging
@@ -62,12 +64,18 @@ patch_lightroom() {
 	
 	variants_page=$(req "$variants_url" -)
 	
-	# Step 3: Get version-specific URL from second variant
-	version_url=$(echo "$variants_page" | $pup '.variant:nth-child(2) > .v-icon attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
+	# Step 3: Get version-specific URL from variants
+	version_url=$(
+	    echo "$variants_page" | $pup '.variant .v-icon attr{onclick}' | 
+	    sed -n "s/.*['\"]\(https[^'\"]*\)['\"].*/\1/p" |
+	    head -1
+	)
 	
 	if [ -z "$version_url" ]; then
-		echo "Failed to extract version URL"
-		exit 1
+	    red_log "[-] Variants page content for debugging:"
+	    echo "$variants_page" | head -n 40
+	    red_log "[-] Failed to extract version URL from variants page"
+	    exit 1
 	fi
 	
 	# Step 4: Visit version-specific page

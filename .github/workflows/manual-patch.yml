@@ -31,6 +31,7 @@ jobs:
     container:
       image: ubuntu:20.04
       options: --user root
+    timeout-minutes: 45  # Increased timeout
     strategy:
       matrix:
         app: ["ggphotos", "lightroom", "soundcloud"]  # Google Photos, Adobe Lightroom, SoundCloud

@@ -17,3 +17,12 @@ if [ "$warp" = " on" ]; then
 else
   echo -e "\e[31m[-] Can't install Cloudflare Warp\e[0m"
 fi
+
+# Add connection test
+if ! wget -qO- https://www.uptodown.com >/dev/null; then
+    echo -e "\e[31m[-] Failed to connect to Uptodown\e[0m"
+    echo "Network debug info:"
+    warp-cli status
+    curl --verbose https://www.uptodown.com
+    exit 1
+fi
