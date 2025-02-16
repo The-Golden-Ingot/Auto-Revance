@@ -27,73 +27,39 @@ patch_lightroom() {
 	# Patch Lightroom:
 	get_patches_key "lightroom"
 	
-	# Step 1: Visit initial download page
-	initial_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/download" -)
+	# Visit versions page
+	versions_page="https://adobe-lightroom-mobile.en.uptodown.com/android/versions"
 	
-	if [ -z "$initial_page" ]; then
-		echo "Failed to load initial page"
+	# Extract data-url from first version item
+	data_url=$(curl -sL "$versions_page" | pup 'div#versions-items-list div.version-item:first-of-type attr{data-url}')
+	
+	if [ -z "$data_url" ]; then
+		red_log "[-] Failed to extract data-url from versions page"
 		exit 1
 	fi
 	
-	# Try multiple extraction methods for variants URL
-	variants_url=$(
-	    # Method 1: Try pup CSS selector
-	    echo "$initial_page" | $pup '#variants-button attr{onclick}' | sed -n "s/.*window\.location\s*=\s*['\"]\([^'\"]*\)['\"].*/\1/p" ||
-	    # Fallback Method 2: Use grep for pattern matching
-	    echo "$initial_page" | grep -Eo "window\.location\s*=\s*['\"][^'\"]+['\"]" | head -1 | sed "s/window\.location\s*=\s*['\"]\([^'\"]*\)['\"]/\1/"
-	)
+	# Modify URL with -x suffix
+	modified_url="${data_url}-x"
+	green_log "[DEBUG] Modified URL: $modified_url"
 	
-	# Add URL validation with multiple fallbacks
-	if [[ ! "$variants_url" =~ ^https:// ]]; then
-	    # Handle different URL patterns
-	    if [[ "$variants_url" =~ ^/ ]]; then
-	        variants_url="https://adobe-lightroom-mobile.en.uptodown.com$variants_url"
-	    else
-	        variants_url="https://adobe-lightroom-mobile.en.uptodown.com/android/variant/$variants_url"
-	    fi
-	fi
+	# First visit the modified URL
+	green_log "[+] Visiting modified URL"
+	req "$modified_url" -
 	
-	# Add verbose logging for debugging
-	green_log "[DEBUG] Variants URL: $variants_url"
+	# Wait for page "load" (simulated delay)
+	sleep 5
 	
-	# Verify URL format before proceeding
-	if [[ ! "$variants_url" =~ ^https://.*uptodown.com ]]; then
-	    red_log "[-] Invalid variants URL format: $variants_url"
-	    exit 1
-	fi
+	# Download using modified URL with required headers
+	green_log "[+] Downloading Lightroom from modified URL"
+	wget -q --show-progress --content-disposition \
+		--header="Referer: $modified_url" \
+		"$modified_url" -O "./download/lightroom-beta.apk"
 	
-	variants_page=$(req "$variants_url" -)
-	
-	# Step 3: Get version-specific URL from variants
-	version_url=$(
-	    echo "$variants_page" | $pup '.variant .v-icon attr{onclick}' | 
-	    sed -n "s/.*['\"]\(https[^'\"]*\)['\"].*/\1/p" |
-	    head -1
-	)
-	
-	if [ -z "$version_url" ]; then
-	    red_log "[-] Variants page content for debugging:"
-	    echo "$variants_page" | head -n 40
-	    red_log "[-] Failed to extract version URL from variants page"
-	    exit 1
-	fi
-	
-	# Step 4: Visit version-specific page
-	version_page=$(req "$version_url" -)
-	
-	# Step 5: Wait required time before getting download button
-	sleep 10  # Increased from 5 to 10 seconds
-	
-	# Step 6: Get final download URL from the button
-	download_url=$(echo "$version_page" | $pup 'button#detail-download-button attr{data-url}' | tr -d '[:space:]')
-	
-	if [ -z "$download_url" ]; then
-		echo "Failed to extract download URL"
+	if [ ! -f "./download/lightroom-beta.apk" ]; then
+		red_log "[-] Failed to download Lightroom APK"
 		exit 1
 	fi
 	
-	# Step 7: Download the XAPK
-	req "https://dw.uptodown.com/dwn/$download_url" "lightroom-beta.xapk"
 	patch "lightroom-beta" "revanced"
 }
 
