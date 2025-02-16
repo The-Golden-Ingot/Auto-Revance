@@ -28,15 +28,16 @@ patch_lightroom() {
 	# Get versions page directly
 	versions_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/versions" -)
 	
-	# Simplified selector to match the actual HTML structure
-	version_url=$(echo "$versions_page" | $pup '.versions .content div:nth-child(2) attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
+	# Extract second version URL using the data-url attribute from the versions-items-list;
+	# Note: we use :nth-child(2) since the first div is the first version.
+	version_url=$(echo "$versions_page" | $pup '.versions .content div:nth-child(2) attr{data-url}')
 	
 	if [ -z "$version_url" ]; then
 		echo "Failed to extract version URL"
 		exit 1
 	fi
 	
-	# Download the specific version
+	# Download the specific version's detailed page and extract the final download URL from the button
 	url="https://dw.uptodown.com/dwn/$(req "$version_url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')"
 	req "$url" "lightroom-beta.xapk"
 	
