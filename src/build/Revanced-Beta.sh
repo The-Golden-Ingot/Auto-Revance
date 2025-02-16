@@ -25,22 +25,34 @@ patch_lightroom() {
 	# Patch Lightroom:
 	get_patches_key "lightroom"
 	
-	# Step 1: Visit initial download page and get version-specific URL
+	# Step 1: Visit initial download page
 	initial_page=$(req "https://adobe-lightroom-mobile.en.uptodown.com/android/download" -)
-	version_url=$(echo "$initial_page" | $pup '.variant:nth-child(2) > .v-icon attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
+	
+	# Step 2: Click variants button and get its page
+	variants_url=$(echo "$initial_page" | $pup 'button.variants attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
+	
+	if [ -z "$variants_url" ]; then
+		echo "Failed to extract variants URL"
+		exit 1
+	fi
+	
+	variants_page=$(req "$variants_url" -)
+	
+	# Step 3: Get version-specific URL from second variant
+	version_url=$(echo "$variants_page" | $pup '.variant:nth-child(2) > .v-icon attr{onclick}' | sed -n "s/.*'\(https[^']*\)'.*/\1/p")
 	
 	if [ -z "$version_url" ]; then
 		echo "Failed to extract version URL"
 		exit 1
 	fi
 	
-	# Step 2: Visit version-specific page
+	# Step 4: Visit version-specific page
 	version_page=$(req "$version_url" -)
 	
-	# Step 3: Wait required time before getting download button
+	# Step 5: Wait required time before getting download button
 	sleep 5  # Wait 5 seconds as specified
 	
-	# Step 4: Get final download URL from the button
+	# Step 6: Get final download URL from the button
 	download_url=$(echo "$version_page" | $pup 'button#detail-download-button attr{data-url}' | tr -d '[:space:]')
 	
 	if [ -z "$download_url" ]; then
@@ -48,8 +60,8 @@ patch_lightroom() {
 		exit 1
 	fi
 	
-	# Step 5: Download the APK
-	req "https://dw.uptodown.com/dwn/$download_url" "lightroom-beta.apk"
+	# Step 7: Download the XAPK
+	req "https://dw.uptodown.com/dwn/$download_url" "lightroom-beta.xapk"
 	patch "lightroom-beta" "revanced"
 }
 
