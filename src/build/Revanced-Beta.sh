@@ -36,27 +36,29 @@ patch_lightroom() {
 		exit 1
 	fi
 	
-	echo "Version URL: $version_url"
+	echo "Debug: Version URL = $version_url"
 	
 	# Download the specific version's detailed page and extract the final download URL from the button
 	download_page=$(req "$version_url" -)
 	
-	# Debug: Save the download page HTML to inspect it
+	# Save the download page for debugging
 	echo "$download_page" > download_page.html
 	
 	# Try different selectors for the download button
-	download_url=$(echo "$download_page" | $pup 'a#detail-download-button attr{data-url}')
+	download_url=$(echo "$download_page" | $pup 'a.button.download attr{href}')
+	
 	if [ -z "$download_url" ]; then
-		download_url=$(echo "$download_page" | $pup '[data-url]:contains("Download") attr{data-url}')
+		echo "Failed to extract download URL using first selector, trying alternative..."
+		download_url=$(echo "$download_page" | $pup 'a[data-url] attr{data-url}')
 	fi
 	
 	if [ -z "$download_url" ]; then
 		echo "Failed to extract download URL"
-		echo "Download page saved to download_page.html for inspection"
+		echo "Download page content saved to download_page.html for inspection"
 		exit 1
 	fi
 	
-	echo "Download URL: $download_url"
+	echo "Debug: Download URL = $download_url"
 	
 	# Use the direct download domain
 	url="https://dw.uptodown.com$download_url"
