@@ -27,95 +27,52 @@ patch_lightroom() {
 	# Patch Lightroom:
 	get_patches_key "lightroom"
 	
-	# Visit versions page with proper headers
+	# Get versions page
 	versions_page="https://adobe-lightroom-mobile.en.uptodown.com/android/versions"
 	green_log "[+] Fetching versions page"
 	html_content=$(curl -sL -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" "$versions_page")
 	
-	# New selector for data-url
+	# Extract latest version URL
 	data_url=$(echo "$html_content" | $pup 'div#versions-items-list div[data-url]:first-of-type attr{data-url}')
 	
 	if [ -z "$data_url" ]; then
 		red_log "[-] Failed to extract data-url from versions page"
-		red_log "[DEBUG] HTML content snippet:"
-		echo "$html_content" | grep -A20 'id="versions-items-list"' | head -n 30
 		exit 1
 	fi
-	
+
 	# Modify URL with -x suffix
 	modified_url="${data_url}-x"
 	green_log "[DEBUG] Modified URL: $modified_url"
 	
-	# First visit the modified URL with headers
+	# Visit modified URL first
 	green_log "[+] Visiting modified URL"
-	curl -sL -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" \
-		 -H "Referer: $versions_page" \
-		 "$modified_url" > /dev/nullp
+	req "$modified_url" - > /dev/null
+
+	# Get final download URL from download button
+	green_log "[+] Resolving download URL"
+	download_path=$(req "$modified_url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')
+	final_url="https://dw.uptodown.com/dwn/$download_path"
 	
-	# Wait for page "load" (simulated delay)
-	sleep 5
+	# Download using proper Uptodown flow
+	green_log "[+] Downloading Lightroom XAPK"
+	req "$final_url" "./download/lightroom-beta.xapk"
 	
-	# Download using modified URL with required headers
-	green_log "[+] Downloading Lightroom from modified URL"
-	wget -q --show-progress --content-disposition \
-		--header="User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" \
-		--header="Referer: $modified_url" \
-		"$modified_url" -O "./download/lightroom-beta.apk"
-	
-	if [ ! -f "./download/lightroom-beta.apk" ]; then
-		red_log "[-] Failed to download Lightroom APK"
+	if [ ! -f "./download/lightroom-beta.xapk" ]; then
+		red_log "[-] Failed to download Lightroom XAPK"
 		exit 1
 	fi
 
-	# Check if downloaded file is HTML instead of APK/XAPK
-	if grep -q "<!DOCTYPE html>" "./download/lightroom-beta.apk"; then
-		red_log "[-] Downloaded file appears to be HTML instead of APK"
-		red_log "[DEBUG] File preview:"
-		head -n 5 "./download/lightroom-beta.apk"
-		exit 1
-	fi
-
-	# Process XAPK bundle
+	# Existing processing code
 	green_log "[+] Processing XAPK bundle"
-	mv "./download/lightroom-beta.apk" "./download/lightroom-beta.xapk"
-	
-	# Check if file is a valid zip archive using unzip
-	if ! unzip -t "./download/lightroom-beta.xapk" > /dev/null 2>&1; then
-		red_log "[-] Downloaded file is not a valid XAPK/ZIP archive"
-		red_log "[DEBUG] File preview (first 100 bytes):"
-		dd if="./download/lightroom-beta.xapk" bs=1 count=100 2>/dev/null | od -c
-		exit 1
-	fi
-	
-	green_log "[+] Unzipping XAPK bundle"
-	unzip -l "./download/lightroom-beta.xapk" | grep ".apk" || {
-		red_log "[-] No APK files found in bundle"
-		red_log "[DEBUG] Bundle contents:"
-		unzip -l "./download/lightroom-beta.xapk"
-		exit 1
-	}
-	
 	unzip "./download/lightroom-beta.xapk" -d "./download/lightroom-beta" > /dev/null 2>&1
-	
-	# List extracted contents
-	green_log "[DEBUG] Extracted contents:"
-	ls -la "./download/lightroom-beta/"
-	
-	# Extract the actual APK from bundle
-	green_log "[+] Extracting main APK from bundle"
 	find "./download/lightroom-beta" -maxdepth 1 -name "*.apk" -exec mv {} "./download/lightroom-beta.apk" \;
 	
-	# Verify APK exists before cleanup
 	if [ ! -f "./download/lightroom-beta.apk" ]; then
-		red_log "[-] Failed to find APK in extracted bundle"
+		red_log "[-] Failed to extract APK from bundle"
 		exit 1
 	fi
 	
-	# Cleanup temporary files AFTER extraction
 	rm -rf "./download/lightroom-beta.xapk" "./download/lightroom-beta"
-
-	# Now patch normally
-	get_patches_key "lightroom"
 	patch "lightroom-beta" "revanced"
 }
 
