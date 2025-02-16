@@ -3,10 +3,8 @@
 source ./src/build/utils.sh
 # Download requirements
 revanced_dl(){
-	set -e  # Exit immediately on error
 	dl_gh "revanced-patches" "revanced" "prerelease"
  	dl_gh "revanced-cli" "revanced" "latest"
-	set +e
 }
 
 patch_ggphotos() {
@@ -26,63 +24,9 @@ patch_lightroom() {
 	revanced_dl
 	# Patch Lightroom:
 	get_patches_key "lightroom"
-	
-	# Get versions page
-	versions_page="https://adobe-lightroom-mobile.en.uptodown.com/android/versions"
-	green_log "[+] Fetching versions page"
-	html_content=$(curl -sL -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36" "$versions_page")
-	
-	# Extract latest version URL and name
-	data_url=$(echo "$html_content" | $pup 'div#versions-items-list div[data-url]:first-of-type attr{data-url}')
-	version_name=$(echo "$html_content" | $pup 'div#versions-items-list div.version:first-of-type text{}' | tr -d ' ')
-	
-	if [ -z "$data_url" ]; then
-		red_log "[-] Failed to extract data-url from versions page"
-		exit 1
-	fi
-
-	# Modify URL with -x suffix
-	modified_url="${data_url}-x"
-	green_log "[DEBUG] Modified URL: $modified_url"
-	
-	# Visit modified URL first
-	green_log "[+] Visiting modified URL"
-	req "$modified_url" - > /dev/null
-
-	# Wait 5 seconds before getting download button
-	green_log "[+] Waiting for download button..."
-	sleep 5
-
-	# Get final download URL from download button
-	green_log "[+] Resolving download URL"
-	download_path=$(req "$modified_url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')
-	final_url="https://dw.uptodown.com/dwn/$download_path"
-	
-	# Use version name for XAPK
-	xapk_name="adobe-lightroom-${version_name}.xapk"
-	green_log "[DEBUG] XAPK filename: $xapk_name"
-	
-	# Download using proper Uptodown flow
-	green_log "[+] Downloading Lightroom XAPK"
-	wget -q --show-progress --content-disposition \
-		-O "./download/$xapk_name" "$final_url"
-	
-	if [ ! -f "./download/$xapk_name" ]; then
-		red_log "[-] Failed to download Lightroom XAPK"
-		exit 1
-	fi
-
-	# Process XAPK bundle
-	green_log "[+] Processing XAPK bundle"
-	unzip "./download/$xapk_name" -d "./download/lightroom-beta" > /dev/null 2>&1
-	find "./download/lightroom-beta" -maxdepth 1 -name "*.apk" -exec mv {} "./download/lightroom-beta.apk" \;
-	
-	if [ ! -f "./download/lightroom-beta.apk" ]; then
-		red_log "[-] Failed to extract APK from bundle"
-		exit 1
-	fi
-	
-	rm -rf "./download/$xapk_name" "./download/lightroom-beta"
+	url="https://adobe-lightroom-mobile.en.uptodown.com/android/download/1048999065-x"
+	url="https://dw.uptodown.com/dwn/$(req "$url" - | $pup -p --charset utf-8 'button#detail-download-button attr{data-url}')"
+	req "$url" "adobe-photoshop-lightroom-10-2-0.xapk"	
 	patch "lightroom-beta" "revanced"
 }
 
