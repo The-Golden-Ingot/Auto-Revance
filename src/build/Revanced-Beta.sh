@@ -58,9 +58,7 @@ patch_lightroom() {
 	
 	# Create work directories
 	WORK_DIR=$(mktemp -d)
-	DOWNLOAD_DIR="$WORK_DIR/downloads"
-	MERGED_DIR="$WORK_DIR/merged"
-	mkdir -p "$DOWNLOAD_DIR" "$MERGED_DIR"
+	mkdir -p "$WORK_DIR/downloads" "$WORK_DIR/merged" "./download"
 
 	# Cleanup handler
 	cleanup() {
@@ -75,25 +73,25 @@ patch_lightroom() {
 
 	# Download and verify XAPK
 	echo "📥 Downloading Lightroom XAPK..."
-	if ! curl -L -A "$USER_AGENT" -o "$DOWNLOAD_DIR/lightroom.xapk" "$final_download_url" || \
-		! [ -s "$DOWNLOAD_DIR/lightroom.xapk" ] || \
-		! unzip -t "$DOWNLOAD_DIR/lightroom.xapk" >/dev/null 2>&1; then
+	if ! curl -L -A "$USER_AGENT" -o "$WORK_DIR/downloads/lightroom.xapk" "$final_download_url" || \
+		! [ -s "$WORK_DIR/downloads/lightroom.xapk" ] || \
+		! unzip -t "$WORK_DIR/downloads/lightroom.xapk" >/dev/null 2>&1; then
 		echo "❌ Failed to download valid XAPK"
 		exit 1
 	fi
 
 	# Extract XAPK
 	echo "📦 Extracting XAPK..."
-	if ! unzip -o "$DOWNLOAD_DIR/lightroom.xapk" -d "$DOWNLOAD_DIR" > /dev/null 2>&1; then
+	if ! unzip -o "$WORK_DIR/downloads/lightroom.xapk" -d "$WORK_DIR/downloads" > /dev/null 2>&1; then
 		echo "❌ Failed to extract XAPK"
 		exit 1
 	fi
 
 	# Find and verify base APK
-	if [ -f "$DOWNLOAD_DIR/base.apk" ]; then
-		BASE_APK="$DOWNLOAD_DIR/base.apk"
+	if [ -f "$WORK_DIR/downloads/base.apk" ]; then
+		BASE_APK="$WORK_DIR/downloads/base.apk"
 	else
-		BASE_APK=$(find "$DOWNLOAD_DIR" -maxdepth 1 -type f -name "*.apk" | head -n 1)
+		BASE_APK=$(find "$WORK_DIR/downloads" -maxdepth 1 -type f -name "*.apk" | head -n 1)
 		if [ -z "$BASE_APK" ]; then
 			echo "❌ No APK found in XAPK"
 			exit 1
@@ -107,13 +105,14 @@ patch_lightroom() {
 	fi
 
 	# Copy base APK to download directory with correct name
-	cp "$BASE_APK" "./download/lightroom-beta.apk"
+	mkdir -p "./download/lightroom-beta"
+	cp "$BASE_APK" "./download/lightroom-beta/base.apk"
 
 	# Handle native libraries
-	if [ -d "$DOWNLOAD_DIR/lib/arm64-v8a" ]; then
+	if [ -d "$WORK_DIR/downloads/lib/arm64-v8a" ]; then
 		echo "📚 Preserving native libraries..."
-		mkdir -p "./download/lib/arm64-v8a"
-		cp -r "$DOWNLOAD_DIR/lib/arm64-v8a/"* "./download/lib/arm64-v8a/"
+		mkdir -p "./download/lightroom-beta/lib/arm64-v8a"
+		cp -r "$WORK_DIR/downloads/lib/arm64-v8a/"* "./download/lightroom-beta/lib/arm64-v8a/"
 	fi
 
 	# Handle the bundle and create arm64-v8a version
@@ -121,10 +120,10 @@ patch_lightroom() {
 	split_editor "lightroom-beta" "lightroom-arm64-v8a-beta" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
 
 	# Copy native libraries to the final APK
-	if [ -d "./download/lib/arm64-v8a" ]; then
+	if [ -d "./download/lightroom-beta/lib/arm64-v8a" ]; then
 		echo "📚 Copying native libraries to final APK..."
 		mkdir -p "./release/lib/arm64-v8a"
-		cp -r "./download/lib/arm64-v8a/"* "./release/lib/arm64-v8a/"
+		cp -r "./download/lightroom-beta/lib/arm64-v8a/"* "./release/lib/arm64-v8a/"
 	fi
 
 	# Patch the arm64-v8a version
