@@ -56,44 +56,81 @@ patch_lightroom() {
 	
 	echo "Final download URL: $final_download_url"
 	
-	# Download the XAPK
-	mkdir -p "./download/lightroom-beta"
-	req "$final_download_url" "lightroom-beta.xapk"
-	
-	# Extract the XAPK
-	unzip -o "./download/lightroom-beta.xapk" -d "./download/lightroom-beta" > /dev/null 2>&1
-	
-	# Move base.apk to correct location
-	if [ -f "./download/lightroom-beta/base.apk" ]; then
-		mv "./download/lightroom-beta/base.apk" "./download/lightroom-beta.apk"
-	else
-		apk_candidate=$(find "./download/lightroom-beta" -maxdepth 1 -iname "*.apk" | head -n 1)
-		if [ -n "$apk_candidate" ]; then
-			mv "$apk_candidate" "./download/lightroom-beta.apk"
+	# Create work directories
+	WORK_DIR=$(mktemp -d)
+	DOWNLOAD_DIR="$WORK_DIR/downloads"
+	MERGED_DIR="$WORK_DIR/merged"
+	mkdir -p "$DOWNLOAD_DIR" "$MERGED_DIR"
+
+	# Cleanup handler
+	cleanup() {
+		if [ $? -eq 0 ]; then
+			echo "🧹 Cleaning temporary files..."
+			rm -rf "$WORK_DIR"
 		else
-			echo "No APK found in the XAPK"
+			echo "🛑 Error occurred - preserved workdir: $WORK_DIR"
+		fi
+	}
+	trap cleanup EXIT
+
+	# Download and verify XAPK
+	echo "📥 Downloading Lightroom XAPK..."
+	if ! curl -L -A "$USER_AGENT" -o "$DOWNLOAD_DIR/lightroom.xapk" "$final_download_url" || \
+		! [ -s "$DOWNLOAD_DIR/lightroom.xapk" ] || \
+		! unzip -t "$DOWNLOAD_DIR/lightroom.xapk" >/dev/null 2>&1; then
+		echo "❌ Failed to download valid XAPK"
+		exit 1
+	fi
+
+	# Extract XAPK
+	echo "📦 Extracting XAPK..."
+	if ! unzip -o "$DOWNLOAD_DIR/lightroom.xapk" -d "$DOWNLOAD_DIR" > /dev/null 2>&1; then
+		echo "❌ Failed to extract XAPK"
+		exit 1
+	fi
+
+	# Find and verify base APK
+	if [ -f "$DOWNLOAD_DIR/base.apk" ]; then
+		BASE_APK="$DOWNLOAD_DIR/base.apk"
+	else
+		BASE_APK=$(find "$DOWNLOAD_DIR" -maxdepth 1 -type f -name "*.apk" | head -n 1)
+		if [ -z "$BASE_APK" ]; then
+			echo "❌ No APK found in XAPK"
 			exit 1
 		fi
 	fi
-	
-	# Preserve native libraries
-	if [ -d "./download/lightroom-beta/lib/arm64-v8a" ]; then
-		mkdir -p "./download/lib/arm64-v8a"
-		cp -r "./download/lightroom-beta/lib/arm64-v8a/"* "./download/lib/arm64-v8a/"
+
+	# Verify APK is valid
+	if ! unzip -t "$BASE_APK" >/dev/null 2>&1; then
+		echo "❌ Extracted APK is invalid"
+		exit 1
 	fi
-	
+
+	# Copy base APK to download directory with correct name
+	cp "$BASE_APK" "./download/lightroom-beta.apk"
+
+	# Handle native libraries
+	if [ -d "$DOWNLOAD_DIR/lib/arm64-v8a" ]; then
+		echo "📚 Preserving native libraries..."
+		mkdir -p "./download/lib/arm64-v8a"
+		cp -r "$DOWNLOAD_DIR/lib/arm64-v8a/"* "./download/lib/arm64-v8a/"
+	fi
+
 	# Handle the bundle and create arm64-v8a version
+	echo "🔄 Creating arm64-v8a version..."
 	split_editor "lightroom-beta" "lightroom-arm64-v8a-beta" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
-	
+
 	# Copy native libraries to the final APK
 	if [ -d "./download/lib/arm64-v8a" ]; then
+		echo "📚 Copying native libraries to final APK..."
 		mkdir -p "./release/lib/arm64-v8a"
 		cp -r "./download/lib/arm64-v8a/"* "./release/lib/arm64-v8a/"
 	fi
-	
+
 	# Patch the arm64-v8a version
+	echo "🔨 Patching APK..."
 	patch "lightroom-arm64-v8a-beta" "revanced"
-	
+
 	# Cleanup
 	rm -rf "./download/lightroom-beta" "./download/lib"
 }
