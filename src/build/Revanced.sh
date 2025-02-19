@@ -7,12 +7,12 @@ revanced_dl(){
  	dl_gh "revanced-cli" "revanced" "latest"
 }
 
-patch_ggphotos() {
+patch_googlephotos() {
 	revanced_dl
 	# Patch Google photos (Arm64-v8a only):
-	get_patches_key "gg-photos"
-	get_apk "com.google.android.apps.photos" "gg-photos" "photos" "google-inc/photos/google-photos" "arm64-v8a" "nodpi"
-	patch "gg-photos" "revanced"
+	get_patches_key "googlephotos"
+	get_apk "com.google.android.apps.photos" "google-photos" "photos" "google-inc/photos/google-photos" "arm64-v8a" "nodpi"
+	patch "google-photos" "revanced"
 }
 
 patch_soundcloud() {
@@ -25,8 +25,8 @@ patch_soundcloud() {
 }
 
 case "$1" in
-    "ggphotos")
-        patch_ggphotos
+    "googlephotos")
+        patch_googlephotos
         ;;
     "soundcloud")
         patch_soundcloud

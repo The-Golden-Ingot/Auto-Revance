@@ -21,8 +21,8 @@ jobs:
       - name: Check github connection
         id: check-gh
         run: bash src/etc/connection.sh
-      - name: Check new patch ReVanced
-        id: check-rv-beta
+      - name: Check new patch Revanced
+        id: check-rv
         if: steps.check-gh.outputs.internet_error == '0'
         run: bash src/etc/ci.sh ReVanced/revanced-patches prerelease youtube-revanced.apk
       - name: Check new patch RVX Anddea
@@ -64,15 +64,15 @@ jobs:
           retry_count: ${{ github.event.inputs.retry_count }}
           max_retries: 3
     outputs:
-      check_rv_beta: ${{ steps.check-rv-beta.outputs.new_patch }}
+      check_rv: ${{ steps.check-rv.outputs.new_patch }}
       check_rve_anddea_beta: ${{ steps.check-rve-anddea-beta.outputs.new_patch }}
       check_twitter_piko_beta: ${{ steps.check-twitter-piko-beta.outputs.new_patch }}
       check_Revanced_Experiments: ${{ steps.check-Revanced-Experiments.outputs.new_patch }}
 
-  Patch-Revanced-Beta:
+  Patch-Revanced:
     name: Patch Revanced
     needs: check
-    if: ${{ needs.check.outputs.check_rv_beta == 1 }}
+    if: ${{ needs.check.outputs.check_rv == 1 }}
     uses: ./.github/workflows/manual-patch.yml
     with:
       org: "Revanced"
