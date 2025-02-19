@@ -14,38 +14,115 @@ on:
           - 'anddea'
           - 'piko'
           - 'experiments'
-      app:
-        description: 'Which app to patch?'
-        required: true
-        type: choice
-        options:
-          - 'youtube'
-          - 'twitter'
-          - 'instagram'
-          - 'googlephotos'
-          - 'soundcloud'
+      youtube:
+        description: 'Patch YouTube (Anddea)'
+        type: boolean
+        default: false
+      twitter:
+        description: 'Patch Twitter (Piko)'
+        type: boolean
+        default: false
+      instagram:
+        description: 'Patch Instagram (Experiments)'
+        type: boolean
+        default: false
+      googlephotos:
+        description: 'Patch Google Photos (ReVanced)'
+        type: boolean
+        default: false
+      soundcloud:
+        description: 'Patch SoundCloud (ReVanced)'
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       target:
         required: true
         type: string
-      app:
+      apps:
         required: true
         type: string
 
 jobs:
-  prepare:
+  validate:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      
+      # Get valid apps for the provider
+      - name: Get valid apps
+        id: apps
+        uses: ./.github/actions/provider-app-matrix
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          provider: ${{ inputs.target || github.event.inputs.target }}
+      
+      # Validate app selections and create build matrix
+      - name: Set build matrix
+        id: set-matrix
+        run: |
+          # Map checkbox inputs to apps array
+          declare -a selected_apps=()
+          
+          # Check each app input
+          if [[ "${{ github.event.inputs.youtube }}" == "true" ]]; then
+            selected_apps+=("youtube")
+          fi
+          if [[ "${{ github.event.inputs.twitter }}" == "true" ]]; then
+            selected_apps+=("twitter")
+          fi
+          if [[ "${{ github.event.inputs.instagram }}" == "true" ]]; then
+            selected_apps+=("instagram")
+          fi
+          if [[ "${{ github.event.inputs.googlephotos }}" == "true" ]]; then
+            selected_apps+=("googlephotos")
+          fi
+          if [[ "${{ github.event.inputs.soundcloud }}" == "true" ]]; then
+            selected_apps+=("soundcloud")
+          fi
+          
+          # For workflow_call, use the apps input
+          if [ -n "${{ inputs.apps }}" ]; then
+            IFS=',' read -ra selected_apps <<< "${{ inputs.apps }}"
+          fi
+          
+          # Validate against provider's valid apps
+          valid_apps="${{ steps.apps.outputs.valid-apps }}"
+          invalid_apps=()
+          valid_selections=()
+          
+          for app in "${selected_apps[@]}"; do
+            app=$(echo "$app" | tr -d ' ')
+            if [[ ! " $valid_apps " =~ " $app " ]]; then
+              invalid_apps+=("$app")
+            else
+              valid_selections+=("$app")
+            fi
+          done
+          
+          if [ ${#invalid_apps[@]} -gt 0 ]; then
+            echo "::error::Invalid apps for provider '${{ inputs.target || github.event.inputs.target }}': ${invalid_apps[*]}"
+            echo "::error::Valid apps are: $valid_apps"
+            exit 1
+          fi
+          
+          if [ ${#valid_selections[@]} -eq 0 ]; then
+            echo "::error::No valid apps selected for provider '${{ inputs.target || github.event.inputs.target }}'"
+            echo "::error::Please select at least one valid app"
+            exit 1
+          fi
+          
+          # Create JSON array for matrix
+          matrix_json="$(printf '"%s",' "${valid_selections[@]}" | sed 's/,$//')"
+          echo "matrix={\"app\":[$matrix_json]}" >> $GITHUB_OUTPUT
 
   build:
-    needs: prepare
+    needs: validate
     runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{fromJson(needs.validate.outputs.matrix)}}
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -72,13 +149,13 @@ jobs:
               ;;
           esac
       
-      - name: Build ${{ inputs.app || github.event.inputs.app }}
-        run: bash src/build/${{ steps.script.outputs.name }} ${{ inputs.app || github.event.inputs.app }}
+      - name: Build ${{ matrix.app }}
+        run: bash src/build/${{ steps.script.outputs.name }} ${{ matrix.app }}
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: patched-apk
+          name: ${{ matrix.app }}-patched
           path: |
             release/*.apk
             release/versions.txt
@@ -90,27 +167,31 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: patched-apk
           path: artifacts
+          pattern: '*-patched'
+          merge-multiple: true
       
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get version info
-          version_file=$(find artifacts -name "versions.txt" | head -n 1)
-          app="${{ inputs.app || github.event.inputs.app }}"
-          version=$(grep "$app=" "$version_file" | cut -d'=' -f2 || echo "N/A")
+          # Get version info and create notes for each app
+          release_notes="### Manual Build\n\n"
+          release_notes+="Provider: ${{ inputs.target || github.event.inputs.target }}\n\n"
+          release_notes+="#### Apps:\n"
           
-          # Create release notes
-          release_notes="### Manual Build\n"
-          release_notes+="- App: $app\n"
-          release_notes+="- Version: $version\n"
-          release_notes+="- Patch Provider: ${{ inputs.target || github.event.inputs.target }}\n"
+          version_file=$(find artifacts -name "versions.txt" | head -n 1)
+          IFS=',' read -ra apps <<< "${{ inputs.apps || github.event.inputs.apps }}"
+          
+          for app in "${apps[@]}"; do
+            app=$(echo "$app" | tr -d ' ')
+            version=$(grep "$app=" "$version_file" | cut -d'=' -f2 || echo "N/A")
+            release_notes+="- $app: $version\n"
+          done
           
           # Create release
           release_tag="manual-$(date +'%Y.%m.%d-%H%M%S')"
           gh release create "$release_tag" \
             --title "Manual Build $release_tag" \
             --notes "$release_notes" \
-            artifacts/*.apk
+            artifacts/**/*.apk
