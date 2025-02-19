@@ -7,24 +7,19 @@ _request() {
     local url=$1
     local output=$2
     local headers=(
-        "User-Agent: Mozilla/5.0 (Android 14; Mobile; rv:134.0) Gecko/134.0 Firefox/134.0"
-        "Content-Type: application/octet-stream"
-        "Accept-Language: en-US,en;q=0.9"
-        "Connection: keep-alive"
-        "Upgrade-Insecure-Requests: 1"
-        "Cache-Control: max-age=0"
-        "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8"
+        'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
+        'Accept-Language: en-US,en;q=0.9'
+        'Connection: keep-alive'
+        'Upgrade-Insecure-Requests: 1'
+        'Cache-Control: max-age=0'
+        'Referer: https://www.apkmirror.com'
     )
     
-    local header_args=""
-    for header in "${headers[@]}"; do
-        header_args+=" --header=\"$header\""
-    done
-    
     if [ "$output" = "-" ]; then
-        wget -nv -O "$output" $header_args --keep-session-cookies --timeout=30 "$url" || rm -f "$output"
+        wget -nv -O "$output" $(printf -- "--header='%s' " "${headers[@]}") --keep-session-cookies --timeout=30 "$url" || rm -f "$output"
     else
-        wget -nv -O "./download/$output" $header_args --keep-session-cookies --timeout=30 "$url" || rm -f "./download/$output"
+        wget -nv -O "./download/$output" $(printf -- "--header='%s' " "${headers[@]}") --keep-session-cookies --timeout=30 "$url" || rm -f "./download/$output"
     fi
 }
 
@@ -106,7 +101,7 @@ _get_latest_version() {
     
     # Get version from APKMirror
     version=$(_request "https://www.apkmirror.com/uploads/?appcategory=$app_name" - | \
-        grep -oP 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
+        pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
         grep -Evi 'alpha|beta' | \
         grep -oPi '\b\d+(\.\d+)+(?:\-\w+)?(?:\.\d+)?(?:\.\w+)?\b' | \
         sed -n "$((attempt + 1))p")
@@ -126,7 +121,7 @@ download_apk() {
     version=$(parse_version "$version")
     log_success "Downloading $app_name version: $version $arch"
     
-    local url="https://www.apkmirror.com/apk/$package-$version-release/"
+    local url="https://www.apkmirror.com/apk/$package/$app_name/$app_name-$version-release/"
     local output="./download/$app_name.apk"
     
     if [[ "$type" == "Bundle" ]] || [[ "$type" == "Bundle_extract" ]]; then
@@ -142,16 +137,27 @@ download_apk() {
             log_success "Trying version: $version"
         fi
         
-        _download_apk "$url" "$regexp" "$(basename "$output")" "$type"
-        
-        if [[ -f "./download/$(basename "$output")" ]]; then
-            log_success "Successfully downloaded $app_name"
-            break
-        else
-            ((attempt++))
-            log_error "Failed to download $app_name, trying another version"
-            unset version
+        # Get download page URL
+        local download_page=$(_request "$url" - | pup 'a[href*="download"] attr{href}' | head -n1)
+        if [ -n "$download_page" ]; then
+            download_page="https://www.apkmirror.com$download_page"
+            
+            # Get final download URL
+            local final_url=$(_request "$download_page" - | pup 'a#downloadButton attr{href}' | head -n1)
+            if [ -n "$final_url" ]; then
+                final_url="https://www.apkmirror.com$final_url"
+                _request "$final_url" "$(basename "$output")"
+                
+                if [[ -f "./download/$(basename "$output")" ]]; then
+                    log_success "Successfully downloaded $app_name"
+                    break
+                fi
+            fi
         fi
+        
+        ((attempt++))
+        log_error "Failed to download $app_name, trying another version"
+        unset version
     done
     
     if [ $attempt -eq 10 ]; then
