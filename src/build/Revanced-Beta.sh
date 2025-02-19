@@ -15,80 +15,6 @@ patch_ggphotos() {
 	patch "gg-photos-arm64-v8a-beta" "revanced"
 }
 
-patch_lightroom() {
-	revanced_dl
-	# Patch Lightroom:
-	get_patches_key "lightroom"
-	
-	# Set a common browser user agent
-	USER_AGENT="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-	
-	# First step: Get the version page URL
-	html_content=$(curl -s -A "$USER_AGENT" "https://adobe-lightroom-mobile.en.uptodown.com/android/versions")
-	
-	# Extract the first XAPK version URL from the HTML content
-	version_url=$(echo "$html_content" | perl -0777 -ne 'print $1 if /<div[^>]*data-url="([^"]+)"[^>]*>(?:(?!<div).)*?<span class="type xapk"/s')
-	
-	if [ -z "$version_url" ]; then
-	  echo "No version URL found. Check debug.html for the fetched HTML content."
-	  echo "$html_content" > debug.html
-	  exit 1
-	fi
-	
-	# Add -x suffix to version_url
-	version_url="${version_url}-x"
-	
-	echo "Version page URL: $version_url"
-	
-	# Second step: Get the download button data-url
-	detail_page=$(curl -s -A "$USER_AGENT" "$version_url")
-	
-	# Extract the data-url from the download button using a more precise pattern
-	download_token=$(echo "$detail_page" | perl -0777 -ne 'print $1 if /id="detail-download-button"[^>]+data-url="([^"]+)"/s')
-	
-	if [ -z "$download_token" ]; then
-	  echo "No download token found."
-	  exit 1
-	fi
-	
-	# Construct the final download URL
-	final_download_url="https://dw.uptodown.com/dwn/$download_token"
-	
-	echo "Final download URL: $final_download_url"
-	
-	# Download the XAPK file
-	wget -q -O "./download/lightroom-beta.xapk" --header="User-Agent: $USER_AGENT" "$final_download_url"
-	
-	if [ ! -f "./download/lightroom-beta.xapk" ]; then
-	  echo "Failed to download Lightroom XAPK"
-	  exit 1
-	fi
-	
-	# Create a temporary directory and extract XAPK
-	mkdir -p "./download/lightroom-temp"
-	unzip -q "./download/lightroom-beta.xapk" -d "./download/lightroom-temp"
-	
-	if [ ! -d "./download/lightroom-temp" ]; then
-	  echo "Failed to extract XAPK contents"
-	  exit 1
-	fi
-	
-	# Merge splits into standalone APK using APKEditor
-	green_log "[+] Merge splits apk to standalone apk"
-	java -jar $APKEditor m -i "./download/lightroom-temp" -o "./download/lightroom-beta.apk" > /dev/null 2>&1
-	
-	if [ ! -f "./download/lightroom-beta.apk" ]; then
-	  echo "Failed to merge APK splits"
-	  exit 1
-	fi
-	
-	# Clean up temporary files
-	rm -rf "./download/lightroom-temp" "./download/lightroom-beta.xapk"
-	
-	# Patch the merged APK
-	patch "lightroom-beta" "revanced"
-}
-
 patch_soundcloud() {
 	revanced_dl
 	# Patch SoundCloud (Arm64-v8a only):
@@ -101,9 +27,6 @@ patch_soundcloud() {
 case "$1" in
     "ggphotos")
         patch_ggphotos
-        ;;
-    "lightroom")
-        patch_lightroom
         ;;
     "soundcloud")
         patch_soundcloud
