@@ -9,12 +9,12 @@ patch_youtube_rve() {
 
     # Patch YouTube:
     get_patches_key "youtube-rve-anddea"
-    get_apk "com.google.android.youtube" "youtube-beta" "youtube" "google-inc/youtube/youtube"
-    patch "youtube-beta" "anddea" "inotia"
+    get_apk "com.google.android.youtube" "youtube" "youtube" "google-inc/youtube/youtube"
+    patch "youtube" "anddea" "inotia"
 
     # Patch YouTube Arm64-v8a only:
     get_patches_key "youtube-rve-anddea"
-    split_arch "youtube-beta" "anddea" "$(gen_rip_libs armeabi-v7a x86_64 x86)"
+    split_arch "youtube" "anddea" "$(gen_rip_libs armeabi-v7a x86_64 x86)"
 }
 
 case "$1" in

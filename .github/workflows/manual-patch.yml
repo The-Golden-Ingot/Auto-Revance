@@ -11,12 +11,12 @@ on:
       org:
         description: 'Which "Revanced" do you want to patch?'
         required: true
-        default: 'Revanced Beta'
+        default: 'Revanced'
         type: choice
         options:
-          - 'Revanced Beta'
-          - 'RVE-anddea-beta'
-          - 'Twitter Piko Beta'
+          - 'Revanced'
+          - 'RVX Anddea'
+          - 'Twitter Piko'
           - 'Revanced Experiments'
   workflow_call:
     inputs:
@@ -25,8 +25,8 @@ on:
         type: string
 jobs:
   patch_rv_beta:
-    name: Patch Revanced Beta
-    if: ${{ github.event.inputs.org == 'Revanced Beta' || inputs.org == 'Revanced Beta' }}
+    name: Patch Revanced
+    if: ${{ github.event.inputs.org == 'Revanced' || inputs.org == 'Revanced' }}
     runs-on: ubuntu-latest
     container:
       image: ubuntu:20.04
@@ -53,7 +53,7 @@ jobs:
       - name: Cache
         uses: actions/upload-artifact@v4
         with:
-          name: Cache_rv_beta_${{ matrix.app }}
+          name: revanced_beta_${{ matrix.app }}
           path: |
             ./release/*.apk
   release_rv_beta:
@@ -66,15 +66,15 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: Cache_rv_beta_*
+          pattern: revanced_beta_*
           path: ./release
           merge-multiple: true
       - name: Releasing APK files
         uses: ./.github/actions/release
 
   patch_rve_anddea_beta:
-    name: Patch RVX Anddea Beta version
-    if: ${{ github.event.inputs.org == 'RVE-anddea-beta' || inputs.org == 'RVE-anddea-beta' }}
+    name: Patch RVX Anddea
+    if: ${{ github.event.inputs.org == 'RVX Anddea' || inputs.org == 'RVX Anddea' }}
     runs-on: ubuntu-latest
     container:
       image: ubuntu:20.04
@@ -98,7 +98,7 @@ jobs:
       - name: Cache
         uses: actions/upload-artifact@v4
         with:
-          name: Cache_anddea_beta
+          name: revanced_extended_beta
           path: |
             ./release/*.apk
   release_rve_anddea_beta:
@@ -111,14 +111,14 @@ jobs:
       - name: Cache
         uses: actions/download-artifact@v4
         with:
-          name: Cache_anddea_beta
+          name: revanced_extended_beta
           path: ./release
       - name: Releasing APK files
         uses: ./.github/actions/release
 
   patch_twitter_piko_beta:
-    name: Patch Twitter Piko Beta
-    if: ${{ github.event.inputs.org == 'Twitter Piko Beta' || inputs.org == 'Twitter Piko Beta' }}
+    name: Patch Twitter Piko
+    if: ${{ github.event.inputs.org == 'Twitter Piko' || inputs.org == 'Twitter Piko' }}
     runs-on: ubuntu-latest
     container:
       image: ubuntu:20.04
@@ -142,7 +142,7 @@ jobs:
       - name: Cache
         uses: actions/upload-artifact@v4
         with:
-          name: Cache_piko_beta
+          name: revanced_piko_beta
           path: |
             ./release/*.apk
   release_twitter_piko_beta:
@@ -155,7 +155,7 @@ jobs:
       - name: Cache
         uses: actions/download-artifact@v4
         with:
-          name: Cache_piko_beta
+          name: revanced_piko_beta
           path: ./release
       - name: Releasing APK files
         uses: ./.github/actions/release
@@ -186,7 +186,7 @@ jobs:
       - name: Cache
         uses: actions/upload-artifact@v4
         with:
-          name: Cache_rv_experiments
+          name: revanced_experiments
           path: |
             ./release/*.apk
   release_rv_experiments:
@@ -199,7 +199,7 @@ jobs:
       - name: Cache
         uses: actions/download-artifact@v4
         with:
-          name: Cache_rv_experiments
+          name: revanced_experiments
           path: ./release
       - name: Releasing APK files
         uses: ./.github/actions/release
