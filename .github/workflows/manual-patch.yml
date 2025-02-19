@@ -4,16 +4,6 @@ permissions: write-all
 on:
   workflow_dispatch:
     inputs:
-      target:
-        description: 'Which patch provider to use?'
-        required: true
-        default: 'revanced'
-        type: choice
-        options:
-          - 'revanced'
-          - 'anddea'
-          - 'piko'
-          - 'experiments'
       youtube:
         description: 'Patch YouTube (Anddea)'
         type: boolean
@@ -48,20 +38,22 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      provider: ${{ steps.determine-provider.outputs.provider }}
     steps:
       - uses: actions/checkout@v4
       
-      # Get valid apps for the provider
-      - name: Get valid apps
-        id: apps
-        uses: ./.github/actions/provider-app-matrix
-        with:
-          provider: ${{ inputs.target || github.event.inputs.target }}
-      
-      # Validate app selections and create build matrix
-      - name: Set build matrix
-        id: set-matrix
+      # Determine provider from selected apps
+      - name: Determine provider
+        id: determine-provider
         run: |
+          declare -A app_providers=(
+            ["youtube"]="anddea"
+            ["twitter"]="piko"
+            ["instagram"]="experiments"
+            ["googlephotos"]="revanced"
+            ["soundcloud"]="revanced"
+          )
+          
           # Map checkbox inputs to apps array
           declare -a selected_apps=()
           
@@ -82,39 +74,31 @@ jobs:
             selected_apps+=("soundcloud")
           fi
           
-          # For workflow_call, use the apps input
-          if [ -n "${{ inputs.apps }}" ]; then
+          # For workflow_call, use the target and apps input
+          if [ -n "${{ inputs.target }}" ]; then
+            echo "provider=${{ inputs.target }}" >> $GITHUB_OUTPUT
             IFS=',' read -ra selected_apps <<< "${{ inputs.apps }}"
-          fi
-          
-          # Validate against provider's valid apps
-          valid_apps="${{ steps.apps.outputs.valid-apps }}"
-          invalid_apps=()
-          valid_selections=()
-          
-          for app in "${selected_apps[@]}"; do
-            app=$(echo "$app" | tr -d ' ')
-            if [[ ! " $valid_apps " =~ " $app " ]]; then
-              invalid_apps+=("$app")
-            else
-              valid_selections+=("$app")
+          else
+            # Get provider from first selected app
+            if [ ${#selected_apps[@]} -eq 0 ]; then
+              echo "::error::Please select at least one app to patch"
+              exit 1
             fi
-          done
-          
-          if [ ${#invalid_apps[@]} -gt 0 ]; then
-            echo "::error::Invalid apps for provider '${{ inputs.target || github.event.inputs.target }}': ${invalid_apps[*]}"
-            echo "::error::Valid apps are: $valid_apps"
-            exit 1
-          fi
-          
-          if [ ${#valid_selections[@]} -eq 0 ]; then
-            echo "::error::No valid apps selected for provider '${{ inputs.target || github.event.inputs.target }}'"
-            echo "::error::Please select at least one valid app"
-            exit 1
+            
+            provider="${app_providers[${selected_apps[0]}]}"
+            echo "provider=$provider" >> $GITHUB_OUTPUT
+            
+            # Validate all selected apps are from same provider
+            for app in "${selected_apps[@]}"; do
+              if [ "${app_providers[$app]}" != "$provider" ]; then
+                echo "::error::Cannot mix apps from different providers. All selected apps must be from the same provider."
+                exit 1
+              fi
+            done
           fi
           
           # Create JSON array for matrix
-          matrix_json="$(printf '"%s",' "${valid_selections[@]}" | sed 's/,$//')"
+          matrix_json="$(printf '"%s",' "${selected_apps[@]}" | sed 's/,$//')"
           echo "matrix={\"app\":[$matrix_json]}" >> $GITHUB_OUTPUT
 
   build:
@@ -130,11 +114,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       
-      # Map target to script name
+      # Map provider to script name
       - name: Set script name
         id: script
         run: |
-          case "${{ inputs.target || github.event.inputs.target }}" in
+          case "${{ needs.validate.outputs.provider }}" in
             "revanced")
               echo "name=Revanced.sh" >> $GITHUB_OUTPUT
               ;;
@@ -161,7 +145,7 @@ jobs:
             release/versions.txt
 
   release:
-    needs: build
+    needs: [validate, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -177,14 +161,12 @@ jobs:
         run: |
           # Get version info and create notes for each app
           release_notes="### Manual Build\n\n"
-          release_notes+="Provider: ${{ inputs.target || github.event.inputs.target }}\n\n"
+          release_notes+="Provider: ${{ needs.validate.outputs.provider }}\n\n"
           release_notes+="#### Apps:\n"
           
           version_file=$(find artifacts -name "versions.txt" | head -n 1)
-          IFS=',' read -ra apps <<< "${{ inputs.apps || github.event.inputs.apps }}"
-          
-          for app in "${apps[@]}"; do
-            app=$(echo "$app" | tr -d ' ')
+          for app in ${{ needs.validate.outputs.matrix }}; do
+            app=$(echo "$app" | tr -d '"[],' | tr -d ' ')
             version=$(grep "$app=" "$version_file" | cut -d'=' -f2 || echo "N/A")
             release_notes+="- $app: $version\n"
           done

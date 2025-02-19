@@ -1,6 +1,0 @@
-name: 'Provider App Matrix'
-description: 'Provides valid app options for each patch provider'
-
-runs:
-  using: 'node16'
-  main: 'index.js' 
