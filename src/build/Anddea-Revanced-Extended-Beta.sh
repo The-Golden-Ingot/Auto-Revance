@@ -12,7 +12,9 @@ patch_youtube_rve() {
     get_apk "com.google.android.youtube" "youtube" "youtube" "google-inc/youtube/youtube"
     # Generate rip-lib arguments to remove non-arm64-v8a architectures
     rip_libs=$(gen_rip_libs "armeabi-v7a" "x86" "x86_64")
-    patch "youtube" "anddea" "inotia" "$rip_libs"
+    # Additional optimization flags
+    optimization_flags="--rip-resources=xxxhdpi,xxhdpi,xhdpi,hdpi,mdpi,ldpi,tvdpi --rip-dpi=xxxhdpi,xxhdpi,xhdpi,hdpi,mdpi,ldpi,tvdpi"
+    patch "youtube" "anddea" "inotia" "$rip_libs $optimization_flags"
 }
 
 case "$1" in
