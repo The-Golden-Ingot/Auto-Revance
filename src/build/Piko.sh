@@ -13,9 +13,9 @@ patch_twitter_piko() {
 	fi
 	dl_gh "piko revanced-integrations" "crimera" "$v"
 	get_apk "com.twitter.android" "twitter" "twitter" "x-corp/twitter/x-previously-twitter" "Bundle_extract"
-	# Only build arm64-v8a version
-	split_editor "twitter" "twitter-arm64-v8a" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64 split_config.mdpi split_config.hdpi split_config.xhdpi split_config.xxhdpi split_config.tvdpi"
-	patch "twitter-arm64-v8a" "piko"
+	# Only build arm64-v8a version but name it without architecture
+	split_editor "twitter" "twitter" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64 split_config.mdpi split_config.hdpi split_config.xhdpi split_config.xxhdpi split_config.tvdpi"
+	patch "twitter" "piko"
 }
 
 case "$1" in

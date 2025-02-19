@@ -7,14 +7,11 @@ patch_youtube_rve() {
     dl_gh "revanced-patches" "anddea" "prerelease"
     dl_gh "revanced-cli" "inotia00" "latest"
 
-    # Patch YouTube:
+    # Patch YouTube (Arm64-v8a only, but don't include in name):
     get_patches_key "youtube-rve-anddea"
     get_apk "com.google.android.youtube" "youtube" "youtube" "google-inc/youtube/youtube"
+    split_editor "youtube" "youtube" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
     patch "youtube" "anddea" "inotia"
-
-    # Patch YouTube Arm64-v8a only:
-    get_patches_key "youtube-rve-anddea"
-    split_arch "youtube" "anddea" "$(gen_rip_libs armeabi-v7a x86_64 x86)"
 }
 
 case "$1" in
