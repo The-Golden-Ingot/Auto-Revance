@@ -1,9 +1,0 @@
-[
-    {
-        "patchName": "Custom branding name for SoundCloud",
-        "options": [{
-            "key": "AppName",
-            "value": "SoundCloud ReVanced"
-        }]
-    }
-] 
