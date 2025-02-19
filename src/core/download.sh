@@ -134,11 +134,7 @@ download_apk() {
     local attempt=0
     while [ $attempt -lt 10 ]; do
         if [[ -z $version ]] || [ $attempt -ne 0 ]; then
-            version=$(_request "https://www.apkmirror.com/uploads/?appcategory=$app_name" - | \
-                $pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
-                grep -Evi 'alpha|beta' | \
-                grep -oPi '\b\d+(\.\d+)+(?:\-\w+)?(?:\.\d+)?(?:\.\w+)?\b' | \
-                sed -n "$((attempt + 1))p")
+            version=$(curl -s "$url" | pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | head -n1)
             version=$(parse_version "$version")
             log_success "Trying version: $version"
         fi
