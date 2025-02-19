@@ -1,205 +1,116 @@
 name: Manual Patch
 permissions: write-all
-env:
-  repository: ${{ github.repository }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  org_input: ${{ inputs.org }}
-  org_event_input: ${{ github.event.inputs.org }}
+
 on:
   workflow_dispatch:
     inputs:
-      org:
-        description: 'Which "Revanced" do you want to patch?'
+      target:
+        description: 'Which patch provider to use?'
         required: true
-        default: 'Revanced'
+        default: 'revanced'
         type: choice
         options:
-          - 'Revanced'
-          - 'RVX Anddea'
-          - 'Twitter Piko'
-          - 'Revanced Experiments'
+          - 'revanced'
+          - 'anddea'
+          - 'piko'
+          - 'experiments'
+      app:
+        description: 'Which app to patch?'
+        required: true
+        type: choice
+        options:
+          - 'youtube'
+          - 'twitter'
+          - 'instagram'
+          - 'googlephotos'
+          - 'soundcloud'
   workflow_call:
     inputs:
-      org:
+      target:
         required: true
         type: string
+      app:
+        required: true
+        type: string
+
 jobs:
-  patch_rv_beta:
-    name: Patch Revanced
-    if: ${{ github.event.inputs.org == 'Revanced' || inputs.org == 'Revanced' }}
-    runs-on: ubuntu-latest
-    container:
-      image: ubuntu:20.04
-      options: --user root
-    strategy:
-      matrix:
-        app: ["googlephotos", "soundcloud"]  # Google Photos, SoundCloud
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
-      - name: Preparing to patch
-        uses: ./.github/actions/preparing
-      - name: Install library
-        run: |
-          apt-get update
-          apt-get install -y curl jq wget unzip
-      - name: Check github connection
-        id: check-gh-rvb
-        run: bash src/etc/connection.sh
-      - name: Patch apk
-        id: patch-rvb
-        if: steps.check-gh-rvb.outputs.internet_error == '0'
-        run: bash src/build/Revanced.sh ${{ matrix.app }}
-      - name: Cache
-        uses: actions/upload-artifact@v4
-        with:
-          name: revanced_${{ matrix.app }}
-          path: |
-            ./release/*.apk
-  release_rv_beta:
-    name: Release Revanced
-    needs: patch_rv_beta
+  prepare:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
-          pattern: revanced_*
-          path: ./release
-          merge-multiple: true
-      - name: Releasing APK files
-        uses: ./.github/actions/release
+          distribution: 'temurin'
+          java-version: '17'
 
-  patch_rve_anddea_beta:
-    name: Patch RVX Anddea
-    if: ${{ github.event.inputs.org == 'RVX Anddea' || inputs.org == 'RVX Anddea' }}
+  build:
+    needs: prepare
     runs-on: ubuntu-latest
-    container:
-      image: ubuntu:20.04
-      options: --user root
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
-      - name: Preparing to patch
-        uses: ./.github/actions/preparing
-      - name: Install library
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      # Map target to script name
+      - name: Set script name
+        id: script
         run: |
-          apt-get update
-          apt-get install -y curl jq wget unzip
-      - name: Check github connection
-        id: check-gh-rve-anddea-beta
-        run: bash src/etc/connection.sh
-      - name: Patch apk
-        id: patch-rve-anddea-beta
-        if: steps.check-gh-rve-anddea-beta.outputs.internet_error == '0'
-        run: bash src/build/Anddea-Revanced-Extended.sh youtube-rve
-      - name: Cache
+          case "${{ inputs.target || github.event.inputs.target }}" in
+            "revanced")
+              echo "name=Revanced.sh" >> $GITHUB_OUTPUT
+              ;;
+            "anddea")
+              echo "name=Anddea-Revanced-Extended.sh" >> $GITHUB_OUTPUT
+              ;;
+            "piko")
+              echo "name=Piko.sh" >> $GITHUB_OUTPUT
+              ;;
+            "experiments")
+              echo "name=Revanced-Experiment.sh" >> $GITHUB_OUTPUT
+              ;;
+          esac
+      
+      - name: Build ${{ inputs.app || github.event.inputs.app }}
+        run: bash src/build/${{ steps.script.outputs.name }} ${{ inputs.app || github.event.inputs.app }}
+      
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: revanced_extended_beta
+          name: patched-apk
           path: |
-            ./release/*.apk
-  release_rve_anddea_beta:
-    name: Release RVX Anddea Beta
-    needs: patch_rve_anddea_beta
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
-      - name: Cache
-        uses: actions/download-artifact@v4
-        with:
-          name: revanced_extended_beta
-          path: ./release
-      - name: Releasing APK files
-        uses: ./.github/actions/release
+            release/*.apk
+            release/versions.txt
 
-  patch_twitter_piko_beta:
-    name: Patch Twitter Piko
-    if: ${{ github.event.inputs.org == 'Twitter Piko' || inputs.org == 'Twitter Piko' }}
+  release:
+    needs: build
     runs-on: ubuntu-latest
-    container:
-      image: ubuntu:20.04
-      options: --user root
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
-      - name: Preparing to patch
-        uses: ./.github/actions/preparing
-      - name: Install library
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: patched-apk
+          path: artifacts
+      
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          apt-get update
-          apt-get install -y curl jq wget unzip
-      - name: Check github connection
-        id: check-gh-piko-beta
-        run: bash src/etc/connection.sh
-      - name: Patch apk
-        id: patch-piko-beta
-        if: steps.check-gh-piko-beta.outputs.internet_error == '0'
-        run: bash src/build/Piko.sh prerelease
-      - name: Cache
-        uses: actions/upload-artifact@v4
-        with:
-          name: revanced_piko_beta
-          path: |
-            ./release/*.apk
-  release_twitter_piko_beta:
-    name: Release Twitter Piko Beta
-    needs: patch_twitter_piko_beta
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
-      - name: Cache
-        uses: actions/download-artifact@v4
-        with:
-          name: revanced_piko_beta
-          path: ./release
-      - name: Releasing APK files
-        uses: ./.github/actions/release
-
-  patch_rv_experiments:
-    name: Patch Revanced Experiments
-    if: ${{ github.event.inputs.org == 'Revanced Experiments' || inputs.org == 'Revanced Experiments' }}
-    runs-on: ubuntu-latest
-    container:
-      image: ubuntu:20.04
-      options: --user root
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
-      - name: Preparing to patch
-        uses: ./.github/actions/preparing
-      - name: Install library
-        run: |
-          apt-get update
-          apt-get install -y curl jq wget unzip
-      - name: Check github connection
-        id: check-gh-rv-experiments
-        run: bash src/etc/connection.sh
-      - name: Patch apk
-        id: patch-rv-experiments
-        if: steps.check-gh-rv-experiments.outputs.internet_error == '0'
-        run: bash src/build/Revanced-Experiment.sh instagram-rve
-      - name: Cache
-        uses: actions/upload-artifact@v4
-        with:
-          name: revanced_experiments
-          path: |
-            ./release/*.apk
-  release_rv_experiments:
-    name: Release Revanced Experiments
-    needs: patch_rv_experiments
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.2
-      - name: Cache
-        uses: actions/download-artifact@v4
-        with:
-          name: revanced_experiments
-          path: ./release
-      - name: Releasing APK files
-        uses: ./.github/actions/release
+          # Get version info
+          version_file=$(find artifacts -name "versions.txt" | head -n 1)
+          app="${{ inputs.app || github.event.inputs.app }}"
+          version=$(grep "$app=" "$version_file" | cut -d'=' -f2 || echo "N/A")
+          
+          # Create release notes
+          release_notes="### Manual Build\n"
+          release_notes+="- App: $app\n"
+          release_notes+="- Version: $version\n"
+          release_notes+="- Patch Provider: ${{ inputs.target || github.event.inputs.target }}\n"
+          
+          # Create release
+          release_tag="manual-$(date +'%Y.%m.%d-%H%M%S')"
+          gh release create "$release_tag" \
+            --title "Manual Build $release_tag" \
+            --notes "$release_notes" \
+            artifacts/*.apk
