@@ -37,7 +37,7 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      matrix: ${{ steps.determine-provider.outputs.matrix }}
       provider: ${{ steps.determine-provider.outputs.provider }}
     steps:
       - uses: actions/checkout@v4
@@ -97,9 +97,20 @@ jobs:
             done
           fi
           
-          # Create JSON array for matrix
-          matrix_json="$(printf '"%s",' "${selected_apps[@]}" | sed 's/,$//')"
-          echo "matrix={\"app\":[$matrix_json]}" >> $GITHUB_OUTPUT
+          # Create valid JSON array for matrix
+          matrix_json='{"app":['
+          first=true
+          for app in "${selected_apps[@]}"; do
+            if [ "$first" = true ]; then
+              first=false
+            else
+              matrix_json+=','
+            fi
+            matrix_json+='"'$app'"'
+          done
+          matrix_json+=']}'
+          
+          echo "matrix=$matrix_json" >> $GITHUB_OUTPUT
 
   build:
     needs: validate
@@ -165,8 +176,10 @@ jobs:
           release_notes+="#### Apps:\n"
           
           version_file=$(find artifacts -name "versions.txt" | head -n 1)
-          for app in ${{ needs.validate.outputs.matrix }}; do
-            app=$(echo "$app" | tr -d '"[],' | tr -d ' ')
+          matrix='${{ needs.validate.outputs.matrix }}'
+          apps=$(echo "$matrix" | jq -r '.app[]')
+          
+          for app in $apps; do
             version=$(grep "$app=" "$version_file" | cut -d'=' -f2 || echo "N/A")
             release_notes+="- $app: $version\n"
           done
