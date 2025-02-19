@@ -1,111 +1,99 @@
-name: Build and Release
+name: Check new patch
 permissions: write-all
-
 on:
   schedule:
-    - cron: "0 9 * * *"  # Run daily at 9 AM UTC
+    - cron: "0 9 * * *"
   workflow_dispatch:
     inputs:
-      target:
-        description: 'Build target'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - youtube-anddea
-          - twitter-piko
-          - instagram-experiments
-          - googlephotos
-          - soundcloud
-
+      retry_count:
+        description: 'Do not change value below'
+        required: false
+        default: '1'
 jobs:
-  prepare:
+  check:
+    name: Check new patch
     runs-on: ubuntu-latest
-    outputs:
-      should_build: ${{ steps.check.outputs.should_build }}
+    env:
+      repository: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout
+        uses: actions/checkout@v4.1.1
+      - name: Check github connection
+        id: check-gh
+        run: bash src/etc/connection.sh
+      - name: Check new patch Revanced
+        id: check-rv
+        if: steps.check-gh.outputs.internet_error == '0'
+        run: bash src/etc/ci.sh ReVanced/revanced-patches prerelease youtube-revanced.apk
+      - name: Check new patch RVX Anddea
+        id: check-rve-anddea-beta
+        if: steps.check-gh.outputs.internet_error == '0'
+        run: bash src/etc/ci.sh anddea/revanced-patches prerelease youtube-anddea.apk
+      - name: Check new patch Twitter Piko
+        id: check-twitter-piko-beta
+        if: steps.check-gh.outputs.internet_error == '0'
+        run: bash src/etc/ci.sh crimera/piko prerelease twitter-piko.apk
+      - name: Check new patch Revanced Experiments
+        id: check-Revanced-Experiments
+        if: steps.check-gh.outputs.internet_error == '0'
+        run: bash src/etc/ci.sh Aunali321/ReVancedExperiments latest instagram-revanced-experiments.apk
+      - name: Keep workflow run
+        if: steps.check-gh.outputs.internet_error == '0'
+        uses: gautamkrishnar/keepalive-workflow@v1
+      - name: Re-run workflow if github connection not stable
+        if: always() && steps.check-rv.outcome == 'skipped' && env.retry_count < env.max_retries
+        uses: actions/github-script@v7
         with:
-          distribution: 'temurin'
-          java-version: '17'
-      - id: check
-        run: bash src/ci/check.sh
-
-  build:
-    needs: prepare
-    if: needs.prepare.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
-    strategy:
-      matrix:
-        include:
-          - target: youtube-anddea
-            script: Anddea-Revanced-Extended.sh
-            app: youtube
-          - target: twitter-piko
-            script: Piko.sh
-            app: twitter
-          - target: instagram-experiments
-            script: Revanced-Experiment.sh
-            app: instagram
-          - target: googlephotos
-            script: Revanced.sh
-            app: googlephotos
-          - target: soundcloud
-            script: Revanced.sh
-            app: soundcloud
-        target: ${{ fromJSON(github.event.inputs.target == 'all' && '["youtube-anddea", "twitter-piko", "instagram-experiments", "googlephotos", "soundcloud"]' || format('["%s"]', github.event.inputs.target)) }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-      
-      - name: Build ${{ matrix.target }}
-        run: bash src/build/${{ matrix.script }} ${{ matrix.app }}
-      
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.target }}-artifacts
-          path: |
-            release/*.apk
-            release/versions.txt
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-      
-      - name: Create release
+          script: |
+            const maxRetries = ${{ env.max_retries }};
+            let retryCount = ${{ env.retry_count }};
+            if (retryCount < maxRetries) {
+              retryCount += 1;
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: "ci.yml",
+                ref: context.ref,
+                inputs: {
+                  'retry_count': String(retryCount)
+                }
+              });
+            }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Get version info
-          version_file=$(find artifacts -name "versions.txt" | head -n 1)
-          youtube_version=$(grep "youtube=" "$version_file" | cut -d'=' -f2 || echo "N/A")
-          twitter_version=$(grep "twitter=" "$version_file" | cut -d'=' -f2 || echo "N/A")
-          instagram_version=$(grep "instagram=" "$version_file" | cut -d'=' -f2 || echo "N/A")
-          photos_version=$(grep "google-photos=" "$version_file" | cut -d'=' -f2 || echo "N/A")
-          soundcloud_version=$(grep "soundcloud=" "$version_file" | cut -d'=' -f2 || echo "N/A")
-          
-          # Create release notes
-          release_notes="### Versions\n"
-          [ "$youtube_version" != "N/A" ] && release_notes+="- YouTube (Anddea): $youtube_version\n"
-          [ "$twitter_version" != "N/A" ] && release_notes+="- Twitter (Piko): $twitter_version\n"
-          [ "$instagram_version" != "N/A" ] && release_notes+="- Instagram (Experiments): $instagram_version\n"
-          [ "$photos_version" != "N/A" ] && release_notes+="- Google Photos (ReVanced): $photos_version\n"
-          [ "$soundcloud_version" != "N/A" ] && release_notes+="- SoundCloud (ReVanced): $soundcloud_version\n"
-          
-          # Create release
-          release_tag="v$(date +'%Y.%m.%d')"
-          gh release create "$release_tag" \
-            --title "Release $release_tag" \
-            --notes "$release_notes" \
-            artifacts/**/*.apk
+          retry_count: ${{ github.event.inputs.retry_count }}
+          max_retries: 3
+    outputs:
+      check_rv: ${{ steps.check-rv.outputs.new_patch }}
+      check_rve_anddea_beta: ${{ steps.check-rve-anddea-beta.outputs.new_patch }}
+      check_twitter_piko_beta: ${{ steps.check-twitter-piko-beta.outputs.new_patch }}
+      check_Revanced_Experiments: ${{ steps.check-Revanced-Experiments.outputs.new_patch }}
+
+  Patch-Revanced:
+    name: Patch Revanced
+    needs: check
+    if: ${{ needs.check.outputs.check_rv == 1 }}
+    uses: ./.github/workflows/manual-patch.yml
+    with:
+      org: "Revanced"
+  Patch-RVE-anddea-beta:
+    name: Patch RVX Anddea
+    needs: check
+    if: ${{ needs.check.outputs.check_rve_anddea_beta == 1 }}
+    uses: ./.github/workflows/manual-patch.yml
+    with:
+      org: "RVX Anddea"
+  Patch-Twitter-Piko-Beta:
+    name: Patch Twitter Piko
+    needs: check
+    if: ${{ needs.check.outputs.check_twitter_piko_beta == 1 }}
+    uses: ./.github/workflows/manual-patch.yml
+    with:
+      org: "Twitter Piko"
+  Patch-Revanced-Experiments:
+    name: Patch Revanced Experiments
+    needs: check
+    if: ${{ needs.check.outputs.check_Revanced_Experiments == 1 }}
+    uses: ./.github/workflows/manual-patch.yml
+    with:
+      org: "Revanced Experiments"

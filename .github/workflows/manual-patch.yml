@@ -1,192 +1,205 @@
 name: Manual Patch
 permissions: write-all
-
+env:
+  repository: ${{ github.repository }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  org_input: ${{ inputs.org }}
+  org_event_input: ${{ github.event.inputs.org }}
 on:
   workflow_dispatch:
     inputs:
-      youtube:
-        description: 'Patch YouTube (Anddea)'
-        type: boolean
-        default: false
-      twitter:
-        description: 'Patch Twitter (Piko)'
-        type: boolean
-        default: false
-      instagram:
-        description: 'Patch Instagram (Experiments)'
-        type: boolean
-        default: false
-      googlephotos:
-        description: 'Patch Google Photos (ReVanced)'
-        type: boolean
-        default: false
-      soundcloud:
-        description: 'Patch SoundCloud (ReVanced)'
-        type: boolean
-        default: false
+      org:
+        description: 'Which "Revanced" do you want to patch?'
+        required: true
+        default: 'Revanced'
+        type: choice
+        options:
+          - 'Revanced'
+          - 'RVX Anddea'
+          - 'Twitter Piko'
+          - 'Revanced Experiments'
   workflow_call:
     inputs:
-      target:
+      org:
         required: true
         type: string
-      apps:
-        required: true
-        type: string
-
 jobs:
-  validate:
+  patch_rv_beta:
+    name: Patch Revanced
+    if: ${{ github.event.inputs.org == 'Revanced' || inputs.org == 'Revanced' }}
     runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.determine-provider.outputs.matrix }}
-      provider: ${{ steps.determine-provider.outputs.provider }}
-    steps:
-      - uses: actions/checkout@v4
-      
-      # Determine provider from selected apps
-      - name: Determine provider
-        id: determine-provider
-        run: |
-          declare -A app_providers=(
-            ["youtube"]="anddea"
-            ["twitter"]="piko"
-            ["instagram"]="experiments"
-            ["googlephotos"]="revanced"
-            ["soundcloud"]="revanced"
-          )
-          
-          # Map checkbox inputs to apps array
-          declare -a selected_apps=()
-          
-          # Check each app input
-          if [[ "${{ github.event.inputs.youtube }}" == "true" ]]; then
-            selected_apps+=("youtube")
-          fi
-          if [[ "${{ github.event.inputs.twitter }}" == "true" ]]; then
-            selected_apps+=("twitter")
-          fi
-          if [[ "${{ github.event.inputs.instagram }}" == "true" ]]; then
-            selected_apps+=("instagram")
-          fi
-          if [[ "${{ github.event.inputs.googlephotos }}" == "true" ]]; then
-            selected_apps+=("googlephotos")
-          fi
-          if [[ "${{ github.event.inputs.soundcloud }}" == "true" ]]; then
-            selected_apps+=("soundcloud")
-          fi
-          
-          # For workflow_call, use the target and apps input
-          if [ -n "${{ inputs.target }}" ]; then
-            echo "provider=${{ inputs.target }}" >> $GITHUB_OUTPUT
-            IFS=',' read -ra selected_apps <<< "${{ inputs.apps }}"
-          else
-            # Get provider from first selected app
-            if [ ${#selected_apps[@]} -eq 0 ]; then
-              echo "::error::Please select at least one app to patch"
-              exit 1
-            fi
-            
-            provider="${app_providers[${selected_apps[0]}]}"
-            echo "provider=$provider" >> $GITHUB_OUTPUT
-            
-            # Validate all selected apps are from same provider
-            for app in "${selected_apps[@]}"; do
-              if [ "${app_providers[$app]}" != "$provider" ]; then
-                echo "::error::Cannot mix apps from different providers. All selected apps must be from the same provider."
-                exit 1
-              fi
-            done
-          fi
-          
-          # Create valid JSON array for matrix
-          matrix_json='{"app":['
-          first=true
-          for app in "${selected_apps[@]}"; do
-            if [ "$first" = true ]; then
-              first=false
-            else
-              matrix_json+=','
-            fi
-            matrix_json+='"'$app'"'
-          done
-          matrix_json+=']}'
-          
-          echo "matrix=$matrix_json" >> $GITHUB_OUTPUT
-
-  build:
-    needs: validate
-    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+      options: --user root
     strategy:
-      matrix: ${{fromJson(needs.validate.outputs.matrix)}}
-      fail-fast: false
+      matrix:
+        app: ["googlephotos", "soundcloud"]  # Google Photos, SoundCloud
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-      
-      # Map provider to script name
-      - name: Set script name
-        id: script
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Preparing to patch
+        uses: ./.github/actions/preparing
+      - name: Install library
         run: |
-          case "${{ needs.validate.outputs.provider }}" in
-            "revanced")
-              echo "name=Revanced.sh" >> $GITHUB_OUTPUT
-              ;;
-            "anddea")
-              echo "name=Anddea-Revanced-Extended.sh" >> $GITHUB_OUTPUT
-              ;;
-            "piko")
-              echo "name=Piko.sh" >> $GITHUB_OUTPUT
-              ;;
-            "experiments")
-              echo "name=Revanced-Experiment.sh" >> $GITHUB_OUTPUT
-              ;;
-          esac
-      
-      - name: Build ${{ matrix.app }}
-        run: bash src/build/${{ steps.script.outputs.name }} ${{ matrix.app }}
-      
-      - name: Upload artifacts
+          apt-get update
+          apt-get install -y curl jq wget unzip
+      - name: Check github connection
+        id: check-gh-rvb
+        run: bash src/etc/connection.sh
+      - name: Patch apk
+        id: patch-rvb
+        if: steps.check-gh-rvb.outputs.internet_error == '0'
+        run: bash src/build/Revanced.sh ${{ matrix.app }}
+      - name: Cache
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.app }}-patched
+          name: revanced_${{ matrix.app }}
           path: |
-            release/*.apk
-            release/versions.txt
-
-  release:
-    needs: [validate, build]
+            ./release/*.apk
+  release_rv_beta:
+    name: Release Revanced
+    needs: patch_rv_beta
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
-          path: artifacts
-          pattern: '*-patched'
+          pattern: revanced_*
+          path: ./release
           merge-multiple: true
-      
-      - name: Create release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Releasing APK files
+        uses: ./.github/actions/release
+
+  patch_rve_anddea_beta:
+    name: Patch RVX Anddea
+    if: ${{ github.event.inputs.org == 'RVX Anddea' || inputs.org == 'RVX Anddea' }}
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+      options: --user root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Preparing to patch
+        uses: ./.github/actions/preparing
+      - name: Install library
         run: |
-          # Get version info and create notes for each app
-          release_notes="### Manual Build\n\n"
-          release_notes+="Provider: ${{ needs.validate.outputs.provider }}\n\n"
-          release_notes+="#### Apps:\n"
-          
-          version_file=$(find artifacts -name "versions.txt" | head -n 1)
-          matrix='${{ needs.validate.outputs.matrix }}'
-          apps=$(echo "$matrix" | jq -r '.app[]')
-          
-          for app in $apps; do
-            version=$(grep "$app=" "$version_file" | cut -d'=' -f2 || echo "N/A")
-            release_notes+="- $app: $version\n"
-          done
-          
-          # Create release
-          release_tag="manual-$(date +'%Y.%m.%d-%H%M%S')"
-          gh release create "$release_tag" \
-            --title "Manual Build $release_tag" \
-            --notes "$release_notes" \
-            artifacts/**/*.apk
+          apt-get update
+          apt-get install -y curl jq wget unzip
+      - name: Check github connection
+        id: check-gh-rve-anddea-beta
+        run: bash src/etc/connection.sh
+      - name: Patch apk
+        id: patch-rve-anddea-beta
+        if: steps.check-gh-rve-anddea-beta.outputs.internet_error == '0'
+        run: bash src/build/Anddea-Revanced-Extended-Beta.sh youtube-rve
+      - name: Cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: revanced_extended_beta
+          path: |
+            ./release/*.apk
+  release_rve_anddea_beta:
+    name: Release RVX Anddea Beta
+    needs: patch_rve_anddea_beta
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Cache
+        uses: actions/download-artifact@v4
+        with:
+          name: revanced_extended_beta
+          path: ./release
+      - name: Releasing APK files
+        uses: ./.github/actions/release
+
+  patch_twitter_piko_beta:
+    name: Patch Twitter Piko
+    if: ${{ github.event.inputs.org == 'Twitter Piko' || inputs.org == 'Twitter Piko' }}
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+      options: --user root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Preparing to patch
+        uses: ./.github/actions/preparing
+      - name: Install library
+        run: |
+          apt-get update
+          apt-get install -y curl jq wget unzip
+      - name: Check github connection
+        id: check-gh-piko-beta
+        run: bash src/etc/connection.sh
+      - name: Patch apk
+        id: patch-piko-beta
+        if: steps.check-gh-piko-beta.outputs.internet_error == '0'
+        run: bash src/build/Piko.sh prerelease
+      - name: Cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: revanced_piko_beta
+          path: |
+            ./release/*.apk
+  release_twitter_piko_beta:
+    name: Release Twitter Piko Beta
+    needs: patch_twitter_piko_beta
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Cache
+        uses: actions/download-artifact@v4
+        with:
+          name: revanced_piko_beta
+          path: ./release
+      - name: Releasing APK files
+        uses: ./.github/actions/release
+
+  patch_rv_experiments:
+    name: Patch Revanced Experiments
+    if: ${{ github.event.inputs.org == 'Revanced Experiments' || inputs.org == 'Revanced Experiments' }}
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:20.04
+      options: --user root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Preparing to patch
+        uses: ./.github/actions/preparing
+      - name: Install library
+        run: |
+          apt-get update
+          apt-get install -y curl jq wget unzip
+      - name: Check github connection
+        id: check-gh-rv-experiments
+        run: bash src/etc/connection.sh
+      - name: Patch apk
+        id: patch-rv-experiments
+        if: steps.check-gh-rv-experiments.outputs.internet_error == '0'
+        run: bash src/build/Revanced-Experiment.sh instagram-rve
+      - name: Cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: revanced_experiments
+          path: |
+            ./release/*.apk
+  release_rv_experiments:
+    name: Release Revanced Experiments
+    needs: patch_rv_experiments
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Cache
+        uses: actions/download-artifact@v4
+        with:
+          name: revanced_experiments
+          path: ./release
+      - name: Releasing APK files
+        uses: ./.github/actions/release
