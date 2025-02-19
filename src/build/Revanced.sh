@@ -21,8 +21,8 @@ patch_soundcloud() {
 	get_patches_key "soundcloud"
 	get_apk "com.soundcloud.android" "soundcloud" "soundcloud-soundcloud" "soundcloud/soundcloud-soundcloud/soundcloud-play-music-songs" "Bundle_extract"
 	# Only build arm64-v8a version
-	split_editor "soundcloud" "soundcloud-arm64-v8a" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
-	patch "soundcloud-arm64-v8a" "revanced"
+	split_editor "soundcloud" "soundcloud" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
+	patch "soundcloud" "revanced"
 }
 
 case "$1" in
