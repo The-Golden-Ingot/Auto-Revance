@@ -74,7 +74,47 @@ _download_github_release() {
     done
 }
 
-# APKMirror download
+# Download APK from APKMirror
+_download_apk() {
+    local url=$1
+    local regexp=$2
+    local output=$3
+    local type=$4
+    
+    # Get download URL
+    if [[ -z "$type" ]] || [[ $type == "Bundle" ]] || [[ $type == "Bundle_extract" ]]; then
+        url="https://www.apkmirror.com$(_request "$url" - | tr '\n' ' ' | sed -n "s/.*<a[^>]*href=\"\([^\"]*\)\".*${regexp}.*/\1/p")"
+    else
+        url="https://www.apkmirror.com$(_request "$url" - | tr '\n' ' ' | sed -n "s/href=\"/@/g; s;.*${regexp}.*;\1;p")"
+    fi
+    
+    # Get final download URL
+    url="https://www.apkmirror.com$(_request "$url" - | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')"
+    url="https://www.apkmirror.com$(_request "$url" - | grep -oP 'id="download-link".*?href="\K[^"]+')"
+    
+    # Download file
+    if [[ "$url" == "https://www.apkmirror.com" ]]; then
+        return 1
+    fi
+    _request "$url" "$output"
+}
+
+# Get latest version from APKMirror
+_get_latest_version() {
+    local app_name=$1
+    local attempt=$2
+    
+    # Get version from APKMirror
+    version=$(_request "https://www.apkmirror.com/uploads/?appcategory=$app_name" - | \
+        grep -oP 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
+        grep -Evi 'alpha|beta' | \
+        grep -oPi '\b\d+(\.\d+)+(?:\-\w+)?(?:\.\d+)?(?:\.\w+)?\b' | \
+        sed -n "$((attempt + 1))p")
+    
+    echo "$version"
+}
+
+# Download APK with retries
 download_apk() {
     local package=$1
     local app_name=$2
@@ -93,32 +133,31 @@ download_apk() {
         output="./download/$app_name.apkm"
     fi
     
-    _fetch_and_process_apk "$url" "$output" "$arch" "$type" "$extra_params"
-}
-
-_fetch_and_process_apk() {
-    local url=$1
-    local output=$2
-    local arch=$3
-    local type=$4
-    local extra_params=$5
+    # Try up to 10 times with different versions if needed
+    local attempt=0
+    while [ $attempt -lt 10 ]; do
+        if [[ -z $version ]] || [ $attempt -ne 0 ]; then
+            version=$(_get_latest_version "$app_name" "$attempt")
+            version=$(parse_version "$version")
+            log_success "Trying version: $version"
+        fi
+        
+        _download_apk "$url" "$regexp" "$(basename "$output")" "$type"
+        
+        if [[ -f "./download/$(basename "$output")" ]]; then
+            log_success "Successfully downloaded $app_name"
+            break
+        else
+            ((attempt++))
+            log_error "Failed to download $app_name, trying another version"
+            unset version
+        fi
+    done
     
-    # Construct regex based on architecture and type
-    local url_regexp
-    if [[ -z $arch ]]; then
-        url_regexp='APK<\/span>'
-    elif [[ "$type" == "Bundle" ]] || [[ "$type" == "Bundle_extract" ]]; then
-        url_regexp='BUNDLE<\/span>'
-    else
-        url_regexp="${arch}[^@]*${extra_params}</div>[^@]*@\([^\"]*\)"
+    if [ $attempt -eq 10 ]; then
+        log_error "No more versions to try. Failed download"
+        return 1
     fi
-    
-    # Download APK
-    url="https://www.apkmirror.com$(_request "$url" - | tr '\n' ' ' | sed -n "s/.*<a[^>]*href=\"\([^\"]*\)\".*${url_regexp}.*/\1/p")"
-    url="https://www.apkmirror.com$(_request "$url" - | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')"
-    url="https://www.apkmirror.com$(_request "$url" - | grep -oP 'id="download-link".*?href="\K[^"]+')"
-    
-    _request "$url" "$(basename "$output")"
     
     # Process bundle if needed
     if [[ "$type" == "Bundle" ]]; then
