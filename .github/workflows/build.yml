@@ -53,4 +53,40 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.app }}-revanced
-          path: release/*.apk 
+          path: |
+            release/*.apk
+            release/versions.txt
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+          
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get version info and create notes
+          version_file=$(find release -name "versions.txt" | head -n 1)
+          app="${{ github.event.inputs.app }}"
+          version=$(grep "$app=" "$version_file" | cut -d'=' -f2 || echo "N/A")
+          
+          # Create release notes
+          release_notes="### Manual Build\n\n"
+          release_notes+="Provider: revanced\n\n"
+          release_notes+="#### Apps:\n"
+          release_notes+="- $app: $version\n"
+          
+          # Create release
+          release_tag="manual-$(date +'%Y.%m.%d-%H%M%S')"
+          gh release create "$release_tag" \
+            --title "Manual Build $release_tag" \
+            --notes "$release_notes" \
+            release/**/*.apk 
