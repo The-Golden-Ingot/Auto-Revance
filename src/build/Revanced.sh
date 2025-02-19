@@ -8,12 +8,6 @@ source src/core/patch.sh
 revanced_dl() {
     download_github_asset "revanced-patches" "revanced" "prerelease"
     download_github_asset "revanced-cli" "revanced" "latest"
-    
-    # Ensure we have the CLI jar
-    if ! ls revanced-cli-*.jar >/dev/null 2>&1; then
-        log_error "Failed to download ReVanced CLI"
-        return 1
-    fi
 }
 
 # Build Google Photos
@@ -25,7 +19,7 @@ patch_googlephotos() {
     setup_tools
     
     # Download requirements
-    revanced_dl || return 1
+    revanced_dl
     
     # Get compatible version if not specified
     if [ -z "$version" ]; then
@@ -33,17 +27,8 @@ patch_googlephotos() {
     fi
     
     # Download and patch Google Photos
-    download_apk "google-android-apps-photos" "google-photos" "$version" "arm64-v8a" "" "nodpi" || return 1
-    
-    # Get CLI version
-    local cli_jar=$(ls revanced-cli-*.jar)
-    if [ -z "$cli_jar" ]; then
-        log_error "ReVanced CLI jar not found"
-        return 1
-    fi
-    
-    local cli_version=$(echo "$cli_jar" | grep -oP 'revanced-cli-\K[0-9]+')
-    patch_arch "google-photos" "$cli_version"
+    download_apk "com.google.android.apps.photos" "google-photos" "$version" "arm64-v8a" "" "nodpi"
+    patch_arch "google-photos" "$(ls revanced-cli-*.jar | grep -oP 'revanced-cli-\K[0-9]+')"
 }
 
 # Build SoundCloud
@@ -55,7 +40,7 @@ patch_soundcloud() {
     setup_tools
     
     # Download requirements
-    revanced_dl || return 1
+    revanced_dl
     
     # Get compatible version if not specified
     if [ -z "$version" ]; then
@@ -63,17 +48,14 @@ patch_soundcloud() {
     fi
     
     # Download and patch SoundCloud
-    download_apk "soundcloud-android" "soundcloud" "$version" "" "Bundle_extract" "soundcloud-soundcloud/soundcloud-play-music-songs" || return 1
+    download_apk "com.soundcloud.android" "soundcloud" "$version" "" "Bundle_extract" "soundcloud-soundcloud/soundcloud-play-music-songs"
     
-    # Get CLI version
-    local cli_jar=$(ls revanced-cli-*.jar)
-    if [ -z "$cli_jar" ]; then
-        log_error "ReVanced CLI jar not found"
-        return 1
-    fi
+    # Process bundle
+    log_success "Processing SoundCloud bundle"
+    split_editor "soundcloud" "soundcloud" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
     
-    local cli_version=$(echo "$cli_jar" | grep -oP 'revanced-cli-\K[0-9]+')
-    patch_arch "soundcloud" "$cli_version"
+    # Patch
+    patch_arch "soundcloud" "$(ls revanced-cli-*.jar | grep -oP 'revanced-cli-\K[0-9]+')"
 }
 
 # Main function

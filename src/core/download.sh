@@ -4,22 +4,10 @@ source src/core/utils.sh
 
 # HTTP request wrapper
 _request() {
-    local url=$1
-    local output=$2
-    local headers=(
-        'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
-        'Accept-Language: en-US,en;q=0.9'
-        'Connection: keep-alive'
-        'Upgrade-Insecure-Requests: 1'
-        'Cache-Control: max-age=0'
-        'Referer: https://www.apkmirror.com'
-    )
-    
-    if [ "$output" = "-" ]; then
-        wget -nv -O "$output" $(printf -- "--header='%s' " "${headers[@]}") --keep-session-cookies --timeout=30 "$url" || rm -f "$output"
+    if [ "$2" = "-" ]; then
+        wget -nv -O "$2" --header="User-Agent: Mozilla/5.0 (Android 14; Mobile; rv:134.0) Gecko/134.0 Firefox/134.0" --header="Content-Type: application/octet-stream" --header="Accept-Language: en-US,en;q=0.9" --header="Connection: keep-alive" --header="Upgrade-Insecure-Requests: 1" --header="Cache-Control: max-age=0" --header="Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8" --keep-session-cookies --timeout=30 "$1" || rm -f "$2"
     else
-        wget -nv -O "./download/$output" $(printf -- "--header='%s' " "${headers[@]}") --keep-session-cookies --timeout=30 "$url" || rm -f "./download/$output"
+        wget -nv -O "./download/$2" --header="User-Agent: Mozilla/5.0 (Android 14; Mobile; rv:134.0) Gecko/134.0 Firefox/134.0" --header="Content-Type: application/octet-stream" --header="Accept-Language: en-US,en;q=0.9" --header="Connection: keep-alive" --header="Upgrade-Insecure-Requests: 1" --header="Cache-Control: max-age=0" --header="Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8" --keep-session-cookies --timeout=30 "$1" || rm -f "./download/$2"
     fi
 }
 
@@ -30,43 +18,58 @@ download_github_asset() {
     local tag=$3
     
     if [ "$tag" = "prerelease" ]; then
-        _download_github_prerelease "$repo" "$owner"
-    else
-        _download_github_release "$repo" "$owner" "$tag"
-    fi
-}
-
-_download_github_prerelease() {
-    local repo=$1
-    local owner=$2
-    local releases=$(wget -qO- "https://api.github.com/repos/$owner/$repo/releases")
-    
-    while read -r line; do
-        if [[ $line == *"\"browser_download_url\":"* ]]; then
-            url=$(echo $line | cut -d '"' -f 4)
-            if [[ $url != *.asc ]]; then
-                name=$(basename "$url")
-                wget -q -O "$name" "$url"
-                log_success "Downloading $name from $owner"
+        local found=0 assets=0
+        releases=$(wget -qO- "https://api.github.com/repos/$owner/$repo/releases")
+        while read -r line; do
+            if [[ $line == *"\"tag_name\":"* ]]; then
+                tag_name=$(echo $line | cut -d '"' -f 4)
+                if [ "$tag" == "latest" ] || [ "$tag" == "prerelease" ]; then
+                    found=1
+                else
+                    found=0
+                fi
             fi
-        fi
-    done <<< "$releases"
-}
-
-_download_github_release() {
-    local repo=$1
-    local owner=$2
-    local tag=$3
-    local tag_path=$([[ "$tag" == "latest" ]] && echo "latest" || echo "tags/$tag")
-    
-    wget -qO- "https://api.github.com/repos/$owner/$repo/releases/$tag_path" \
-    | jq -r '.assets[] | "\(.browser_download_url) \(.name)"' \
-    | while read -r url name; do
-        if [[ $url != *.asc ]]; then
-            log_success "Downloading $name from $owner"
-            wget -q -O "$name" "$url"
-        fi
-    done
+            if [[ $line == *"\"prerelease\":"* ]]; then
+                prerelease=$(echo $line | cut -d ' ' -f 2 | tr -d ',')
+                if [ "$tag" == "prerelease" ] && [ "$prerelease" == "true" ] ; then
+                    found=1
+                elif [ "$tag" == "prerelease" ] && [ "$prerelease" == "false" ]; then
+                    found=1
+                fi
+            fi
+            if [[ $line == *"\"assets\":"* ]]; then
+                if [ $found -eq 1 ]; then
+                    assets=1
+                fi
+            fi
+            if [[ $line == *"\"browser_download_url\":"* ]]; then
+                if [ $assets -eq 1 ]; then
+                    url=$(echo $line | cut -d '"' -f 4)
+                    if [[ $url != *.asc ]]; then
+                        name=$(basename "$url")
+                        wget -q -O "$name" "$url"
+                        log_success "Downloading $name from $owner"
+                    fi
+                fi
+            fi
+            if [[ $line == *"],"* ]]; then
+                if [ $assets -eq 1 ]; then
+                    assets=0
+                    break
+                fi
+            fi
+        done <<< "$releases"
+    else
+        tags=$( [ "$tag" == "latest" ] && echo "latest" || echo "tags/$tag" )
+        wget -qO- "https://api.github.com/repos/$owner/$repo/releases/$tags" \
+        | jq -r '.assets[] | "\(.browser_download_url) \(.name)"' \
+        | while read -r url name; do
+            if [[ $url != *.asc ]]; then
+                log_success "Downloading $name from $owner"
+                wget -q -O "$name" "$url"
+            fi
+        done
+    fi
 }
 
 # Download APK from APKMirror
@@ -94,21 +97,6 @@ _download_apk() {
     _request "$url" "$output"
 }
 
-# Get latest version from APKMirror
-_get_latest_version() {
-    local app_name=$1
-    local attempt=$2
-    
-    # Get version from APKMirror
-    version=$(_request "https://www.apkmirror.com/uploads/?appcategory=$app_name" - | \
-        pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
-        grep -Evi 'alpha|beta' | \
-        grep -oPi '\b\d+(\.\d+)+(?:\-\w+)?(?:\.\d+)?(?:\.\w+)?\b' | \
-        sed -n "$((attempt + 1))p")
-    
-    echo "$version"
-}
-
 # Download APK with retries
 download_apk() {
     local package=$1
@@ -118,10 +106,24 @@ download_apk() {
     local type=${5:-"APK"}
     local extra_params=$6
     
+    if [[ -z $arch ]]; then
+        url_regexp='APK<\/span>'
+    elif [[ $type == "Bundle" ]] || [[ $type == "Bundle_extract" ]]; then
+        url_regexp='BUNDLE<\/span>'
+    else
+        case $arch in
+            arm64-v8a) url_regexp='arm64-v8a'"[^@]*$extra_params"'</div>[^@]*@\([^"]*\)' ;;
+            armeabi-v7a) url_regexp='armeabi-v7a'"[^@]*$extra_params"'</div>[^@]*@\([^"]*\)' ;;
+            x86) url_regexp='x86'"[^@]*$extra_params"'</div>[^@]*@\([^"]*\)' ;;
+            x86_64) url_regexp='x86_64'"[^@]*$extra_params"'</div>[^@]*@\([^"]*\)' ;;
+            *) url_regexp='$arch'"[^@]*$extra_params"'</div>[^@]*@\([^"]*\)' ;;
+        esac 
+    fi
+    
     version=$(parse_version "$version")
     log_success "Downloading $app_name version: $version $arch"
     
-    local url="https://www.apkmirror.com/apk/$package/$app_name/$app_name-$version-release/"
+    local url="https://www.apkmirror.com/apk/$package-$version-release/"
     local output="./download/$app_name.apk"
     
     if [[ "$type" == "Bundle" ]] || [[ "$type" == "Bundle_extract" ]]; then
@@ -132,32 +134,25 @@ download_apk() {
     local attempt=0
     while [ $attempt -lt 10 ]; do
         if [[ -z $version ]] || [ $attempt -ne 0 ]; then
-            version=$(_get_latest_version "$app_name" "$attempt")
+            version=$(_request "https://www.apkmirror.com/uploads/?appcategory=$app_name" - | \
+                $pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
+                grep -Evi 'alpha|beta' | \
+                grep -oPi '\b\d+(\.\d+)+(?:\-\w+)?(?:\.\d+)?(?:\.\w+)?\b' | \
+                sed -n "$((attempt + 1))p")
             version=$(parse_version "$version")
             log_success "Trying version: $version"
         fi
         
-        # Get download page URL
-        local download_page=$(_request "$url" - | pup 'a[href*="download"] attr{href}' | head -n1)
-        if [ -n "$download_page" ]; then
-            download_page="https://www.apkmirror.com$download_page"
-            
-            # Get final download URL
-            local final_url=$(_request "$download_page" - | pup 'a#downloadButton attr{href}' | head -n1)
-            if [ -n "$final_url" ]; then
-                final_url="https://www.apkmirror.com$final_url"
-                _request "$final_url" "$(basename "$output")"
-                
-                if [[ -f "./download/$(basename "$output")" ]]; then
-                    log_success "Successfully downloaded $app_name"
-                    break
-                fi
-            fi
-        fi
+        _download_apk "$url" "$url_regexp" "$(basename "$output")" "$type"
         
-        ((attempt++))
-        log_error "Failed to download $app_name, trying another version"
-        unset version
+        if [[ -f "./download/$(basename "$output")" ]]; then
+            log_success "Successfully downloaded $app_name"
+            break
+        else
+            ((attempt++))
+            log_error "Failed to download $app_name, trying another version"
+            unset version
+        fi
     done
     
     if [ $attempt -eq 10 ]; then
