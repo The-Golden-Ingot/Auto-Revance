@@ -1,0 +1,47 @@
+name: Build Revanced
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'App to build'
+        required: true
+        default: 'soundcloud'
+        type: choice
+        options:
+        - soundcloud
+        - googlephotos
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+          
+      - name: Create Keystore
+        run: |
+          mkdir -p src
+          echo "${{ secrets.KEYSTORE }}" | base64 -d > src/ks.keystore
+          
+      - name: Create directories
+        run: |
+          mkdir -p download release
+          
+      - name: Build ${{ github.event.inputs.app }}
+        run: bash src/build/Revanced.sh ${{ github.event.inputs.app }}
+        
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.app }}-revanced
+          path: release/${{ github.event.inputs.app }}-revanced.apk 
