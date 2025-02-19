@@ -74,10 +74,7 @@ download_github_asset() {
 
 # Download APK from APKMirror
 _download_apk() {
-    local url=$1
-    local regexp=$2
-    local output=$3
-    local type=$4
+    local url=$1 regexp=$2 output=$3 type=$4
     
     # Get download URL
     if [[ -z "$type" ]] || [[ $type == "Bundle" ]] || [[ $type == "Bundle_extract" ]]; then
@@ -90,7 +87,6 @@ _download_apk() {
     url="https://www.apkmirror.com$(_request "$url" - | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')"
     url="https://www.apkmirror.com$(_request "$url" - | grep -oP 'id="download-link".*?href="\K[^"]+')"
     
-    # Download file
     if [[ "$url" == "https://www.apkmirror.com" ]]; then
         return 1
     fi
@@ -99,12 +95,7 @@ _download_apk() {
 
 # Download APK with retries
 download_apk() {
-    local package=$1
-    local app_name=$2
-    local version=$3
-    local arch=$4
-    local type=${5:-"APK"}
-    local extra_params=$6
+    local package=$1 app_name=$2 version=$3 arch=$4 type=${5:-"APK"} extra_params=$6
     
     if [[ -z $arch ]]; then
         url_regexp='APK<\/span>'
@@ -134,7 +125,7 @@ download_apk() {
     local attempt=0
     while [ $attempt -lt 10 ]; do
         if [[ -z $version ]] || [ $attempt -ne 0 ]; then
-            version=$(curl -s "$url" | pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | head -n1)
+            version=$(curl -s "$url" | $PUP 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | head -n1)
             version=$(parse_version "$version")
             log_success "Trying version: $version"
         fi
