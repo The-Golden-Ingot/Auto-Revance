@@ -290,6 +290,9 @@ patch() {
 		unset lock_version
 		unset excludePatches
 		unset includePatches
+		# Write version info
+		local version=$(aapt dump badging "./download/$1.apk" | grep "versionName" | awk -F"'" '{print $2}')
+		echo "$2=$version" >> release/versions.txt
 	else 
 		red_log "[-] Not found $1.apk"
 		exit 1

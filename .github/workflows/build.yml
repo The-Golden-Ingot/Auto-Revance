@@ -27,6 +27,12 @@ jobs:
           
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools: "latest"
+          build-tools: "34.0.0"
+          platform-tools: "latest"
+          platforms: "android-33"
+          ndk: "25.2.9519653"
           
       - name: Create Keystore
         run: |
@@ -38,10 +44,13 @@ jobs:
           mkdir -p download release
           
       - name: Build ${{ github.event.inputs.app }}
-        run: bash src/build/Revanced.sh ${{ github.event.inputs.app }}
+        run: |
+          cd src/build
+          bash Revanced.sh ${{ github.event.inputs.app }}
+          cd ../../
         
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ github.event.inputs.app }}-revanced
-          path: release/${{ github.event.inputs.app }}-revanced.apk 
+          path: release/*.apk 
