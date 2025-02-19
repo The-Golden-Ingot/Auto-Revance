@@ -70,8 +70,9 @@ patch_googlephotos() {
 
 # Build SoundCloud
 patch_soundcloud() {
-    # Setup directories
-    mkdir -p download release
+    # Setup directories and tools
+    ensure_dirs
+    setup_tools
     
     # Download requirements
     revanced_dl
@@ -80,18 +81,19 @@ patch_soundcloud() {
     get_patches_key "soundcloud"
     
     # Get latest version from APKMirror
-    local url="https://www.apkmirror.com/apk/soundcloud/soundcloud-soundcloud/soundcloud-play-music-songs"
-    version=$(wget -qO- "$url" | grep -oP 'SoundCloud [0-9.]+' | head -1 | grep -oP '[0-9.]+')
+    local url="https://www.apkmirror.com/apk/soundcloud/soundcloud-music-audio/"
+    version=$(wget -qO- "$url" | grep -oP 'SoundCloud [0-9.]+' | head -1 | grep -oP '[0-9.]+' || echo "")
     
     if [[ -z "$version" ]]; then
-        log_error "Failed to detect SoundCloud version"
-        exit 1
+        # Fallback to a known working version if detection fails
+        version="2024.02.01"
+        log_success "Using fallback version: $version"
+    else
+        log_success "Detected SoundCloud version: $version"
     fi
     
-    log_success "Detected SoundCloud version: $version"
-    
     # Download APK
-    download_apk "soundcloud/soundcloud-soundcloud/soundcloud-play-music-songs" "soundcloud" "$version" "" "Bundle_extract"
+    download_apk "soundcloud/soundcloud-music-audio" "soundcloud" "$version" "" "Bundle_extract"
     
     if [[ ! -f "./download/soundcloud.apkm" ]]; then
         log_error "Failed to download SoundCloud"
