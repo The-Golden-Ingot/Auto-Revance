@@ -7,16 +7,12 @@ patch_youtube_rve() {
     dl_gh "revanced-patches" "anddea" "prerelease"
     dl_gh "revanced-cli" "inotia00" "latest"
 
-    # Patch YouTube (Universal first):
+    # Patch YouTube (arm64-v8a only):
     get_patches_key "youtube-rve-anddea"
     get_apk "com.google.android.youtube" "youtube-beta" "youtube" "google-inc/youtube/youtube"
-    patch "youtube-beta" "anddea" "inotia"
-
-    # Split architecture Youtube:
-    get_patches_key "youtube-rve-anddea"
-    for i in {0..3}; do
-        split_arch "youtube-beta" "anddea" "$(gen_rip_libs ${libs[i]})"
-    done
+    
+    # Only generate arm64-v8a version
+    split_arch "youtube-beta" "anddea" "$(gen_rip_libs armeabi-v7a x86 x86_64)"
 }
 
 case "$1" in
