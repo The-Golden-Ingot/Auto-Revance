@@ -7,14 +7,16 @@ patch_youtube_rve() {
     dl_gh "revanced-patches" "anddea" "prerelease"
     dl_gh "revanced-cli" "inotia00" "latest"
 
-    # Patch YouTube (Arm64-v8a only, but don't include in name):
+    # Patch YouTube (Universal first):
     get_patches_key "youtube-rve-anddea"
-    get_apk "com.google.android.youtube" "youtube" "youtube" "google-inc/youtube/youtube"
-    # Generate rip-lib arguments to remove non-arm64-v8a architectures
-    rip_libs=$(gen_rip_libs "armeabi-v7a" "x86" "x86_64")
-    # Additional optimization flags
-    optimization_flags="--rip-resources=xxxhdpi,xxhdpi,xhdpi,hdpi,mdpi,ldpi,tvdpi --rip-dpi=xxxhdpi,xxhdpi,xhdpi,hdpi,mdpi,ldpi,tvdpi"
-    patch "youtube" "anddea" "inotia" "$rip_libs $optimization_flags"
+    get_apk "com.google.android.youtube" "youtube-beta" "youtube" "google-inc/youtube/youtube"
+    patch "youtube-beta" "anddea" "inotia"
+
+    # Split architecture Youtube:
+    get_patches_key "youtube-rve-anddea"
+    for i in {0..3}; do
+        split_arch "youtube-beta" "anddea" "$(gen_rip_libs ${libs[i]})"
+    done
 }
 
 case "$1" in
