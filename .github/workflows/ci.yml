@@ -13,8 +13,11 @@ on:
         type: choice
         options:
           - all
-          - youtube
-          - youtube-music
+          - youtube-anddea
+          - twitter-piko
+          - instagram-experiments
+          - googlephotos
+          - soundcloud
 
 jobs:
   prepare:
@@ -35,7 +38,23 @@ jobs:
     if: needs.prepare.outputs.should_build == 'true' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
-        target: ${{ fromJSON(github.event.inputs.target == 'all' && '["youtube", "youtube-music"]' || format('["%s"]', github.event.inputs.target)) }}
+        include:
+          - target: youtube-anddea
+            script: Anddea-Revanced-Extended.sh
+            app: youtube
+          - target: twitter-piko
+            script: Piko.sh
+            app: twitter
+          - target: instagram-experiments
+            script: Revanced-Experiment.sh
+            app: instagram
+          - target: googlephotos
+            script: Revanced.sh
+            app: googlephotos
+          - target: soundcloud
+            script: Revanced.sh
+            app: soundcloud
+        target: ${{ fromJSON(github.event.inputs.target == 'all' && '["youtube-anddea", "twitter-piko", "instagram-experiments", "googlephotos", "soundcloud"]' || format('["%s"]', github.event.inputs.target)) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +64,7 @@ jobs:
           java-version: '17'
       
       - name: Build ${{ matrix.target }}
-        run: bash src/builders/revanced.sh ${{ matrix.target }} "" "arm64-v8a"
+        run: bash src/build/${{ matrix.script }} ${{ matrix.app }}
       
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -70,14 +89,23 @@ jobs:
         run: |
           # Get version info
           version_file=$(find artifacts -name "versions.txt" | head -n 1)
-          youtube_version=$(grep "youtube=" "$version_file" | cut -d'=' -f2)
-          music_version=$(grep "youtube-music=" "$version_file" | cut -d'=' -f2)
+          youtube_version=$(grep "youtube=" "$version_file" | cut -d'=' -f2 || echo "N/A")
+          twitter_version=$(grep "twitter=" "$version_file" | cut -d'=' -f2 || echo "N/A")
+          instagram_version=$(grep "instagram=" "$version_file" | cut -d'=' -f2 || echo "N/A")
+          photos_version=$(grep "google-photos=" "$version_file" | cut -d'=' -f2 || echo "N/A")
+          soundcloud_version=$(grep "soundcloud=" "$version_file" | cut -d'=' -f2 || echo "N/A")
+          
+          # Create release notes
+          release_notes="### Versions\n"
+          [ "$youtube_version" != "N/A" ] && release_notes+="- YouTube (Anddea): $youtube_version\n"
+          [ "$twitter_version" != "N/A" ] && release_notes+="- Twitter (Piko): $twitter_version\n"
+          [ "$instagram_version" != "N/A" ] && release_notes+="- Instagram (Experiments): $instagram_version\n"
+          [ "$photos_version" != "N/A" ] && release_notes+="- Google Photos (ReVanced): $photos_version\n"
+          [ "$soundcloud_version" != "N/A" ] && release_notes+="- SoundCloud (ReVanced): $soundcloud_version\n"
           
           # Create release
           release_tag="v$(date +'%Y.%m.%d')"
           gh release create "$release_tag" \
             --title "Release $release_tag" \
-            --notes "### Versions
-            - YouTube: $youtube_version
-            - YouTube Music: $music_version" \
+            --notes "$release_notes" \
             artifacts/**/*.apk
