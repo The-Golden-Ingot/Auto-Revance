@@ -12,6 +12,7 @@ patch_googlephotos() {
 	# Patch Google photos (Arm64-v8a only):
 	get_patches_key "googlephotos"
 	get_apk "com.google.android.apps.photos" "google-photos" "photos" "google-inc/photos/google-photos" "arm64-v8a" "nodpi"
+        split_editor "google-photos" "google-photos" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
 	patch "google-photos" "revanced"
 }
 
