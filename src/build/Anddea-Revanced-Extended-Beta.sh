@@ -13,6 +13,9 @@ patch_youtube_rve() {
     
     # Only generate arm64-v8a version
     split_arch "youtube-beta" "anddea" "$(gen_rip_libs armeabi-v7a x86 x86_64)"
+    
+    # Rename the output file
+    mv ./release/youtube-beta-arm64-v8a-anddea.apk ./release/youtube-anddea.apk
 }
 
 case "$1" in
