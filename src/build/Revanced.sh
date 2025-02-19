@@ -33,49 +33,52 @@ patch_googlephotos() {
 
 # Build SoundCloud
 patch_soundcloud() {
-    local version=${1:-""}
-    local release_type=${2:-"latest"}
+    revanced_dl
+    # Patch SoundCloud (Arm64-v8a only):
+    get_patches_key "soundcloud"
     
-    # Setup directories and tools
-    ensure_dirs
-    setup_tools
+    # Fixed URL format and version handling for SoundCloud
+    local url="https://www.apkmirror.com/apk/soundcloud/soundcloud-soundcloud/soundcloud-play-music-songs"
+    version=$(curl -s "$url" | $PUP 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | head -n1 | grep -oP '\d+\.\d+\.\d+')
     
-    # Download requirements
-    log_success "Downloading revanced patches for SoundCloud"
-    download_github_asset "revanced-patches" "revanced" "latest"
-    log_success "Downloading revanced-cli for SoundCloud"
-    download_github_asset "revanced-cli" "revanced" "latest"
-    
-    # Download and patch SoundCloud
-    log_success "Downloading SoundCloud APK"
-    download_apk "com.soundcloud.android" "soundcloud" "$version" "arm64-v8a" "" "nodpi"
-    
-    # Process splits
-    log_success "Processing SoundCloud bundle"
-    split_editor "soundcloud" "soundcloud" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64 split_config.mdpi split_config.hdpi split_config.xhdpi split_config.xxhdpi split_config.tvdpi"
-    
-    # Patch
-    local cli_version=$(ls revanced-cli-*.jar | grep -oP 'revanced-cli-\K.+(?=\.jar)')
-    if [ -z "$cli_version" ]; then
-        log_error "Failed to extract revanced-cli version."
-        return 1
+    if [[ -z "$version" ]]; then
+        log_error "Failed to detect SoundCloud version"
+        exit 1
     fi
-    log_success "Patching SoundCloud using revanced-cli-$cli_version.jar"
-    java -jar "revanced-cli-${cli_version}.jar" \
-         patch \
-         -b *.rvp \
-         --out="./release/soundcloud.apk" \
-         --keystore=./src/_ks.keystore \
-         --purge=true \
-         --force \
-         "./download/soundcloud.apk"
+    
+    download_apk "soundcloud/soundcloud-soundcloud/soundcloud-play-music-songs" "soundcloud" "$version" "" "Bundle_extract"
+    
+    if [[ ! -f "./download/soundcloud.apkm" ]]; then
+        log_error "Failed to download SoundCloud"
+        exit 1
+    fi
+    
+    # Extract and process bundle
+    log_success "Processing SoundCloud bundle"
+    unzip -q "./download/soundcloud.apkm" -d "./download/soundcloud" 
+    split_editor "soundcloud" "soundcloud" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
+    
+    # Patch with correct parameters
+    if [[ -f "./download/soundcloud.apk" ]]; then
+        log_success "Patching SoundCloud using $(ls revanced-cli-*.jar)"
+        java -jar revanced-cli-*.jar patch \
+            --patch-bundle revanced-patches-*.rvp \
+            --out "./release/soundcloud-revanced.apk" \
+            --keystore=./src/_ks.keystore \
+            --options=./src/options/soundcloud.json \
+            $excludePatches$includePatches \
+            "./download/soundcloud.apk"
+    else
+        log_error "SoundCloud APK not found for patching"
+        exit 1
+    fi
 }
 
 # Main function
 main() {
     case "$1" in
         "googlephotos") patch_googlephotos "$2" ;;
-        "soundcloud") patch_soundcloud "$2" ;;
+        "soundcloud") patch_soundcloud ;;
         *)
             echo "Usage: $0 <target> [version]"
             echo "Targets:"
