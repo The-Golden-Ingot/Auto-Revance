@@ -94,7 +94,7 @@ jobs:
       - name: Patch apk
         id: patch-rve-anddea-beta
         if: steps.check-gh-rve-anddea-beta.outputs.internet_error == '0'
-        run: bash src/build/Anddea-Revanced-Extended-Beta.sh youtube-rve
+        run: bash src/build/Anddea-Revanced-Extended.sh youtube-rve
       - name: Cache
         uses: actions/upload-artifact@v4
         with:

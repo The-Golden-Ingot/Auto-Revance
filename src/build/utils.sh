@@ -166,13 +166,8 @@ get_apk() {
 	elif [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
 		url_regexp='BUNDLE<\/span>'
 	else
-		case $5 in
-			arm64-v8a) url_regexp='arm64-v8a'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
-			armeabi-v7a) url_regexp='armeabi-v7a'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
-			x86) url_regexp='x86'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
-			x86_64) url_regexp='x86_64'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
-			*) url_regexp='$5'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
-		esac 
+		# Only handle arm64-v8a
+		url_regexp='arm64-v8a'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)'
 	fi
 	if [ -z "$version" ] && [ "$lock_version" != "1" ]; then
 		if [[ $(ls revanced-cli-*.jar) =~ revanced-cli-([0-9]+) ]]; then

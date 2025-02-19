@@ -116,19 +116,12 @@ patch_app() {
 # Architecture specific patching
 patch_arch() {
     local app=$1
-    local arch=$2
     local cli_version=$3
     
-    log_success "Patching $app for $arch"
+    log_success "Patching $app for arm64-v8a"
     
-    # Add architecture specific options if needed
-    local arch_opts=""
-    case "$arch" in
-        "arm64-v8a") arch_opts="--arch arm64-v8a" ;;
-        "armeabi-v7a") arch_opts="--arch armeabi-v7a" ;;
-        "x86") arch_opts="--arch x86" ;;
-        "x86_64") arch_opts="--arch x86_64" ;;
-    esac
+    # Always use arm64-v8a
+    local arch_opts="--arch arm64-v8a"
     
     patch_app "$app" "$cli_version" "$arch_opts"
 } 

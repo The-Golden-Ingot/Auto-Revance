@@ -24,7 +24,7 @@ src/
 
 - Modular and maintainable codebase
 - Automated builds via GitHub Actions
-- Support for multiple architectures (arm64-v8a, armeabi-v7a)
+- Optimized for arm64-v8a architecture
 - Version tracking and automatic updates
 - Configurable patch options
 
@@ -34,17 +34,16 @@ src/
 
 1. Build YouTube:
    ```bash
-   ./src/builders/revanced.sh youtube [version] [arch]
+   ./src/builders/revanced.sh youtube [version]
    ```
 
 2. Build YouTube Music:
    ```bash
-   ./src/builders/revanced.sh youtube-music [version] [arch]
+   ./src/builders/revanced.sh youtube-music [version]
    ```
 
 Options:
 - `version`: Specific app version (optional)
-- `arch`: Target architecture (default: arm64-v8a)
 
 ### GitHub Actions
 
