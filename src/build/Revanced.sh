@@ -13,12 +13,11 @@ patch_googlephotos() {
 	get_patches_key "googlephotos"
 	get_apk "com.google.android.apps.photos" "google-photos" "photos" "google-inc/photos/google-photos"
 	
-	# Generate arguments to remove architectures and DPIs
-	rip_libs=$(gen_rip_libs armeabi-v7a x86 x86_64)
+	# Generate arguments to remove DPIs only (no arch removal needed)
 	rip_dpi="--rip-dpi ldpi --rip-dpi mdpi --rip-dpi hdpi --rip-dpi xhdpi --rip-dpi xxxhdpi --rip-dpi tvdpi"
 	
-	# Only generate arm64-v8a version with xxhdpi resources
-	split_arch "google-photos" "revanced" "$rip_libs $rip_dpi"
+	# Process arm64v8 APK with DPI stripping
+	split_arch "google-photos" "revanced" "$rip_dpi"
 }
 
 patch_soundcloud() {
