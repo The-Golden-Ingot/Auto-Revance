@@ -15,7 +15,7 @@ patch_googlephotos() {
 	
 	# Generate arguments to remove architectures and DPIs
 	rip_libs=$(gen_rip_libs armeabi-v7a x86 x86_64)
-	rip_dpi="--rip-dpi xxxhdpi,xhdpi,hdpi,mdpi,ldpi,tvdpi"
+	rip_dpi="--rip-dpi ldpi --rip-dpi mdpi --rip-dpi hdpi --rip-dpi xhdpi --rip-dpi xxxhdpi --rip-dpi tvdpi"
 	
 	# Only generate arm64-v8a version with xxhdpi resources
 	split_arch "google-photos" "revanced" "$rip_libs $rip_dpi"
