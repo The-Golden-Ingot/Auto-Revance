@@ -151,8 +151,8 @@ dl_apk() {
     # Add filters to URL if provided
     if [[ ! -z "$arch_filter" ]] || [[ ! -z "$dpi_filter" ]]; then
         url="${url%/}"  # Remove trailing slash if present
-        [[ ! -z "$arch_filter" ]] && url="$url-$arch_filter"
-        [[ ! -z "$dpi_filter" ]] && url="$url-$dpi_filter"
+        [[ ! -z "$arch_filter" ]] && url="${url%/}-$arch_filter"
+        [[ ! -z "$dpi_filter" ]] && url="${url%/}-$dpi_filter"
         url="$url/"
     fi
     
@@ -228,7 +228,7 @@ get_apk() {
 			version=$(req "https://www.apkmirror.com/uploads/$upload_tail$3" - | \
 				$pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
 				grep -Evi 'alpha|beta' | \
-				grep -oPi '\b\d+(?:\.\d+){3,}(?:-\w+)?\b' | \
+				grep -oPi '\b\d+(?:-\d+)+\.\d+\.\d+\b' | \
 				sed -n "$((attempt + 1))p")
 		fi
 		version=$(echo "$version" | tr -d ' ' | sed 's/\./-/g')
