@@ -163,28 +163,12 @@ dl_apk() {
     fi
     url="https://www.apkmirror.com$(req "$url" - | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')"
     url="https://www.apkmirror.com$(req "$url" - | grep -oP 'id="download-link".*?href="\K[^"]+')"
-    #url="https://www.apkmirror.com$(req "$url" - | $pup -p --charset utf-8 'a.downloadButton attr{href}')"
-    #url="https://www.apkmirror.com$(req "$url" - | $pup -p --charset utf-8 'a#download-link attr{href}')"
+    
     if [[ "$url" == "https://www.apkmirror.com" ]]; then
         exit 0
     fi
-    local app_slug=$(basename "$4")
-    local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$app_slug-$3-$version-release/" \
-                              "$url_regexp" \
-                              "$output" \
-                              "$5")
-    if [[ -f "./download/$output" ]]; then
-        green_log "[+] Successfully downloaded $2"
-    else
-        red_log "[-] Failed to download $2"
-        exit 1
-    fi
-    if [[ $5 == "Bundle" ]]; then
-        green_log "[+] Merge splits apk to standalone apk"
-        java -jar $APKEditor m -i ./download/$output -o ./download/$output.apk > /dev/null 2>&1
-    elif [[ $5 == "Bundle_extract" ]]; then
-        unzip "./download/$output" -d "./download/$(basename "$output" .apkm)" > /dev/null 2>&1
-    fi
+    
+    req "$url" "$output"
 }
 get_apk() {
 	if [[ -z $5 ]]; then
@@ -218,7 +202,8 @@ get_apk() {
         else
             local base_apk="$2.apk"
         fi
-        local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$3-$version-release/" \
+        local app_slug=$(basename "$4")
+        local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$app_slug-$version-release/" \
                               "$url_regexp" \
                               "$base_apk" \
                               "$5")
@@ -261,7 +246,7 @@ get_apk() {
 		else
 			local base_apk="$2.apk"
 		fi
-		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/instagram-$version-release/" \
+		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$3-$version-release/" \
 							  "$url_regexp" \
 							  "$base_apk" \
 							  "$5")
