@@ -202,7 +202,7 @@ get_apk() {
         else
             local base_apk="$2.apk"
         fi
-        local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4-$version-release/" \
+        local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$3-$version-release/" \
                               "$url_regexp" \
                               "$base_apk" \
                               "$5")
@@ -226,8 +226,9 @@ get_apk() {
 			local upload_tail="?$([[ $3 = duolingo ]] && echo devcategory= || echo appcategory=)"
 			version=$(req "https://www.apkmirror.com/uploads/$upload_tail$3" - | \
 				$pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
-				grep -Evi 'alpha|beta' | \
-				grep -oPi '\b\d+(?:-\d+){3,}\b' | \
+				grep -Evi 'alpha|beta|wear|android tv' | \
+				grep -oP '\b\d+\.\d+\.\d+\.\d+\.\d+\b' | \
+				head -n1 | \
 				sed -n "$((attempt + 1))p")
 		fi
 		version=$(echo "$version" | tr -d ' ')
@@ -244,7 +245,7 @@ get_apk() {
 		else
 			local base_apk="$2.apk"
 		fi
-		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4-$version-release/" \
+		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$3-$version-release/" \
 							  "$url_regexp" \
 							  "$base_apk" \
 							  "$5")
