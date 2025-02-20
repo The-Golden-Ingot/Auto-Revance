@@ -11,7 +11,7 @@ patch_googlephotos() {
 	revanced_dl
 	# Patch Google photos (Arm64-v8a only):
 	get_patches_key "googlephotos"
-	get_apk "com.google.android.apps.photos" "google-photos" "google-photos" "google-inc/photos/google-photos"
+	get_apk "com.google.android.apps.photos" "google-photos" "photos" "google-inc/photos/google-photos"
 	
 	# Generate arguments to remove DPIs only (no arch removal needed)
 	rip_dpi="--rip-dpi mdpi --rip-dpi hdpi --rip-dpi xhdpi --rip-dpi xxxhdpi --rip-dpi sw600dp --rip-dpi sw672dp --rip-dpi sw720dp --rip-dpi television --rip-dpi watch --rip-dpi car"

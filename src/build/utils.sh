@@ -227,7 +227,7 @@ get_apk() {
 			version=$(req "https://www.apkmirror.com/uploads/$upload_tail$3" - | \
 				$pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
 				grep -Evi 'alpha|beta|wear|android tv|bundle|test' | \
-				grep -oP '\b\d+\.\d+\.\d+\.\d+\.\d+\b|\b\d+\.\d+\.\d+\.\d+\b|\b\d+\.\d+\.\d+\b' | \
+				grep -oP '\b\d+\.\d+\.\d+\.\d+\.\d+\b|\b\d+\.\d+\.\d+\.\d+\b' | \
 				sort -V -r | \
 				sed -n "$((attempt + 1))p")
 		fi
@@ -245,7 +245,7 @@ get_apk() {
 		else
 			local base_apk="$2.apk"
 		fi
-		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$3-$version-release/" \
+		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/instagram-$version-release/" \
 							  "$url_regexp" \
 							  "$base_apk" \
 							  "$5")
