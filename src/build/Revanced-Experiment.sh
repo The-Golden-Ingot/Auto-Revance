@@ -8,8 +8,8 @@ patch_instagram_rve() {
     dl_gh "revanced-cli" "revanced" "latest"
 
     get_patches_key "instagram-revanced-experiments"
-    get_apk "com.instagram.android" "instagram-arm64-v8a" "instagram/instagram-instagram" \
-    patch "instagram-arm64-v8a" "revanced-experiments"
+    get_apk "com.instagram.android" "instagram" "Instagram" "instagram/instagram-instagram"
+    patch "instagram" "revanced-experiments"
 }
 
 case "$1" in
