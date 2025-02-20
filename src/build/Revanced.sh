@@ -24,7 +24,7 @@ patch_soundcloud() {
 	revanced_dl
 	# Patch SoundCloud (Arm64-v8a only):
 	get_patches_key "soundcloud"
-	get_apk "com.soundcloud.android" "soundcloud" "soundcloud" "soundcloud/soundcloud-soundcloud/soundcloud-play-music-songs" "Bundle_extract"
+	get_apk "com.soundcloud.android" "soundcloud" "soundcloud-soundcloud" "soundcloud/soundcloud-soundcloud/soundcloud-play-music-songs" "Bundle_extract"
 	
 	# First merge the split APK
 	split_editor "soundcloud" "soundcloud-merged" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
