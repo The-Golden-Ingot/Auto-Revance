@@ -145,20 +145,30 @@ req() {
     _req "$1" "$2"
 }
 dl_apk() {
-	local url=$1 regexp=$2 output=$3
-	if [[ -z "$4" ]] || [[ $4 == "Bundle" ]] || [[ $4 == "Bundle_extract" ]]; then
-		url="https://www.apkmirror.com$(req "$url" - | tr '\n' ' ' | sed -n "s/.*<a[^>]*href=\"\([^\"]*\)\".*${regexp}.*/\1/p")"
-	else
-		url="https://www.apkmirror.com$(req "$url" - | tr '\n' ' ' | sed -n "s/href=\"/@/g; s;.*${regexp}.*;\1;p")"
-	fi
-	url="https://www.apkmirror.com$(req "$url" - | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')"
-   	url="https://www.apkmirror.com$(req "$url" - | grep -oP 'id="download-link".*?href="\K[^"]+')"
-	#url="https://www.apkmirror.com$(req "$url" - | $pup -p --charset utf-8 'a.downloadButton attr{href}')"
-   	#url="https://www.apkmirror.com$(req "$url" - | $pup -p --charset utf-8 'a#download-link attr{href}')"
-	if [[ "$url" == "https://www.apkmirror.com" ]]; then
-		exit 0
-	fi
-	req "$url" "$output"
+    local url="$1" regexp="$2" output="$3" type="$4"
+    local arch_filter="$5" dpi_filter="$6"
+    
+    # Add filters to URL if provided
+    if [[ ! -z "$arch_filter" ]] || [[ ! -z "$dpi_filter" ]]; then
+        url="${url%/}"  # Remove trailing slash if present
+        [[ ! -z "$arch_filter" ]] && url="$url-$arch_filter"
+        [[ ! -z "$dpi_filter" ]] && url="$url-$dpi_filter"
+        url="$url/"
+    fi
+    
+    if [[ -z "$4" ]] || [[ $4 == "Bundle" ]] || [[ $4 == "Bundle_extract" ]]; then
+        url="https://www.apkmirror.com$(req "$url" - | tr '\n' ' ' | sed -n "s/.*<a[^>]*href=\"\([^\"]*\)\".*${regexp}.*/\1/p")"
+    else
+        url="https://www.apkmirror.com$(req "$url" - | tr '\n' ' ' | sed -n "s/href=\"/@/g; s;.*${regexp}.*;\1;p")"
+    fi
+    url="https://www.apkmirror.com$(req "$url" - | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')"
+    url="https://www.apkmirror.com$(req "$url" - | grep -oP 'id="download-link".*?href="\K[^"]+')"
+    #url="https://www.apkmirror.com$(req "$url" - | $pup -p --charset utf-8 'a.downloadButton attr{href}')"
+    #url="https://www.apkmirror.com$(req "$url" - | $pup -p --charset utf-8 'a#download-link attr{href}')"
+    if [[ "$url" == "https://www.apkmirror.com" ]]; then
+        exit 0
+    fi
+    req "$url" "$output"
 }
 get_apk() {
 	if [[ -z $5 ]]; then
@@ -222,7 +232,14 @@ get_apk() {
 				sed -n "$((attempt + 1))p")
 		fi
 		version=$(echo "$version" | tr -d ' ' | sed 's/\./-/g')
-		green_log "[+] Downloading $3 version: $version $5 $6 $7"
+		
+		# Add architecture and DPI filtering to the version string if provided
+		local arch_filter=""
+		local dpi_filter=""
+		[[ ! -z "$6" ]] && arch_filter="-$6"
+		[[ ! -z "$7" ]] && dpi_filter="-$7"
+		
+		green_log "[+] Downloading $3 version: $version$arch_filter$dpi_filter"
 		if [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
 			local base_apk="$2.apkm"
 		else
