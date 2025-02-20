@@ -168,7 +168,23 @@ dl_apk() {
     if [[ "$url" == "https://www.apkmirror.com" ]]; then
         exit 0
     fi
-    req "$url" "$output"
+    local app_slug=$(basename "$4")
+    local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$app_slug-$3-$version-release/" \
+                              "$url_regexp" \
+                              "$output" \
+                              "$5")
+    if [[ -f "./download/$output" ]]; then
+        green_log "[+] Successfully downloaded $2"
+    else
+        red_log "[-] Failed to download $2"
+        exit 1
+    fi
+    if [[ $5 == "Bundle" ]]; then
+        green_log "[+] Merge splits apk to standalone apk"
+        java -jar $APKEditor m -i ./download/$output -o ./download/$output.apk > /dev/null 2>&1
+    elif [[ $5 == "Bundle_extract" ]]; then
+        unzip "./download/$output" -d "./download/$(basename "$output" .apkm)" > /dev/null 2>&1
+    fi
 }
 get_apk() {
 	if [[ -z $5 ]]; then
