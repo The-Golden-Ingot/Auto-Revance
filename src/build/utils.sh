@@ -228,7 +228,7 @@ get_apk() {
 			version=$(req "https://www.apkmirror.com/uploads/$upload_tail$3" - | \
 				$pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
 				grep -Evi 'alpha|beta' | \
-				grep -oPi '\b\d+(\.\d+)+(?:\-\w+)?(?:\.\d+)?(?:\.\w+)?\b' | \
+				grep -oPi '\b\d+(?:\.\d+){3,}(?:-\w+)?\b' | \
 				sed -n "$((attempt + 1))p")
 		fi
 		version=$(echo "$version" | tr -d ' ' | sed 's/\./-/g')
