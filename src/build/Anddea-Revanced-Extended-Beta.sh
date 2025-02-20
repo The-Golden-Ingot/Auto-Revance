@@ -13,7 +13,7 @@ patch_youtube_rve() {
     
     # Generate arguments to remove architectures and common DPIs
     rip_libs=$(gen_rip_libs armeabi-v7a x86 x86_64)
-    rip_dpi="--rip-dpi mdpi --rip-dpi hdpi --rip-dpi xhdpi --rip-dpi xxxhdpi"
+    rip_dpi="--rip-dpi mdpi --rip-dpi hdpi --rip-dpi xhdpi --rip-dpi xxxhdpi --rip-dpi tvdpi --rip-dpi sw600dp --rip-dpi sw720dp --rip-dpi watch"
     
     # Only generate arm64-v8a version with xxhdpi resources
     split_arch "youtube-beta" "anddea" "$rip_libs $rip_dpi"

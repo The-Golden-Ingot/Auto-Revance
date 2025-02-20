@@ -304,28 +304,47 @@ split_editor() {
         java -jar $APKEditor m -i "./download/$1" -o "./download/$1.apk" > /dev/null 2>&1
         return 0
     fi
+    
+    green_log "[+] Processing split APK configurations"
     IFS=' ' read -r -a include_files <<< "$4"
     mkdir -p "./download/$2"
+    
+    # Copy base APK first
+    if [[ -f "./download/$1/base.apk" ]]; then
+        cp -f "./download/$1/base.apk" "./download/$2/" > /dev/null 2>&1
+    else
+        red_log "[-] Base APK not found"
+        exit 1
+    fi
+    
+    # Process other splits
     for file in "./download/$1"/*.apk; do
         filename=$(basename "$file")
         basename_no_ext="${filename%.apk}"
+        
+        # Skip base.apk as it's already handled
         if [[ "$filename" == "base.apk" ]]; then
-            cp -f "$file" "./download/$2/" > /dev/null 2>&1
             continue
         fi
+        
         if [[ "$3" == "include" ]]; then
             if [[ " ${include_files[*]} " =~ " ${basename_no_ext} " ]]; then
-                cp -f "$file" "./download/$2/" > /dev/null 2>&1
+                cp -f "$file" "./download/$2/" > /dev/null 2>&1 || green_log "[!] Skipping non-existent split: $basename_no_ext"
             fi
         elif [[ "$3" == "exclude" ]]; then
             if [[ ! " ${include_files[*]} " =~ " ${basename_no_ext} " ]]; then
-                cp -f "$file" "./download/$2/" > /dev/null 2>&1
+                cp -f "$file" "./download/$2/" > /dev/null 2>&1 || green_log "[!] Skipping non-existent split: $basename_no_ext"
             fi
         fi
     done
 
     green_log "[+] Merge splits apk to standalone apk"
     java -jar $APKEditor m -i ./download/$2 -o ./download/$2.apk > /dev/null 2>&1
+    
+    if [ $? -ne 0 ]; then
+        red_log "[-] Failed to merge APK splits"
+        exit 1
+    fi
 }
 
 #################################################
@@ -340,18 +359,76 @@ gen_rip_libs() {
 }
 i=0  # Add index for arm64-v8a
 split_arch() {
-	green_log "[+] Splitting $1 to ${archs[i]}:"
-	if [ -f "./download/$1.apk" ]; then
-		unset CI GITHUB_ACTION GITHUB_ACTIONS GITHUB_ACTOR GITHUB_ENV GITHUB_EVENT_NAME GITHUB_EVENT_PATH GITHUB_HEAD_REF GITHUB_JOB GITHUB_REF GITHUB_REPOSITORY GITHUB_RUN_ID GITHUB_RUN_NUMBER GITHUB_SHA GITHUB_WORKFLOW GITHUB_WORKSPACE RUN_ID RUN_NUMBER
-		eval java -jar revanced-cli*.jar patch \
-		-p *.rvp \
-		$3 \
-		--keystore=./src/_ks.keystore --force \
-		--legacy-options=./src/options/$2.json $excludePatches$includePatches \
-		--out=./release/$1-${archs[i]}-$2.apk \
-		./download/$1.apk
-	else
-		red_log "[-] Not found $1.apk"
-		exit 1
-	fi
+    green_log "[+] Splitting $1 to ${archs[i]}:"
+    if [ ! -f "./download/$1.apk" ]; then
+        red_log "[-] Not found $1.apk"
+        exit 1
+    fi
+
+    unset CI GITHUB_ACTION GITHUB_ACTIONS GITHUB_ACTOR GITHUB_ENV GITHUB_EVENT_NAME GITHUB_EVENT_PATH GITHUB_HEAD_REF GITHUB_JOB GITHUB_REF GITHUB_REPOSITORY GITHUB_RUN_ID GITHUB_RUN_NUMBER GITHUB_SHA GITHUB_WORKFLOW GITHUB_WORKSPACE RUN_ID RUN_NUMBER
+    
+    # Extract DPI and lib arguments
+    local dpi_args="" lib_args=""
+    for arg in $3; do
+        if [[ "$arg" == "--rip-dpi"* ]]; then
+            dpi_args+="$arg "
+        elif [[ "$arg" == "--rip-lib"* ]]; then
+            lib_args+="$arg "
+        fi
+    done
+    
+    # Try with all modifications first
+    if eval java -jar revanced-cli*.jar patch \
+        -p *.rvp \
+        $3 \
+        --keystore=./src/_ks.keystore --force \
+        --legacy-options=./src/options/$2.json $excludePatches$includePatches \
+        --out=./release/$1-${archs[i]}-$2.apk \
+        ./download/$1.apk; then
+        return 0
+    fi
+    
+    green_log "[!] Failed with all modifications, trying individual stripping"
+    
+    # Try with only DPI stripping if DPI args exist
+    if [ ! -z "$dpi_args" ]; then
+        green_log "[+] Attempting DPI stripping only"
+        if eval java -jar revanced-cli*.jar patch \
+            -p *.rvp \
+            $dpi_args \
+            --keystore=./src/_ks.keystore --force \
+            --legacy-options=./src/options/$2.json $excludePatches$includePatches \
+            --out=./release/$1-${archs[i]}-$2.apk \
+            ./download/$1.apk; then
+            return 0
+        fi
+    fi
+    
+    # Try with only lib stripping if lib args exist
+    if [ ! -z "$lib_args" ]; then
+        green_log "[+] Attempting lib stripping only"
+        if eval java -jar revanced-cli*.jar patch \
+            -p *.rvp \
+            $lib_args \
+            --keystore=./src/_ks.keystore --force \
+            --legacy-options=./src/options/$2.json $excludePatches$includePatches \
+            --out=./release/$1-${archs[i]}-$2.apk \
+            ./download/$1.apk; then
+            return 0
+        fi
+    fi
+    
+    # If all stripping attempts fail, try without any modifications
+    green_log "[!] All stripping attempts failed, trying without modifications"
+    if eval java -jar revanced-cli*.jar patch \
+        -p *.rvp \
+        --keystore=./src/_ks.keystore --force \
+        --legacy-options=./src/options/$2.json $excludePatches$includePatches \
+        --out=./release/$1-${archs[i]}-$2.apk \
+        ./download/$1.apk; then
+        return 0
+    fi
+    
+    red_log "[-] Patching failed completely"
+    exit 1
 }
