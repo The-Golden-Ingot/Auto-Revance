@@ -196,7 +196,6 @@ get_apk() {
 	fi
 	export version="$version"
     if [[ -n "$version" ]]; then
-        version=$(echo "$version" | tr -d ' ' | sed 's/\./-/g')
         green_log "[+] Downloading $3 version: $version $5 $6 $7"
         if [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
             local base_apk="$2.apkm"
@@ -228,10 +227,10 @@ get_apk() {
 			version=$(req "https://www.apkmirror.com/uploads/$upload_tail$3" - | \
 				$pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
 				grep -Evi 'alpha|beta' | \
-				grep -oPi '\b\d+(?:-\d+)+\.\d+\.\d+\b' | \
+				grep -oPi '\b\d+(?:-\d+){3,}\b' | \
 				sed -n "$((attempt + 1))p")
 		fi
-		version=$(echo "$version" | tr -d ' ' | sed 's/\./-/g')
+		version=$(echo "$version" | tr -d ' ')
 		
 		# Add architecture and DPI filtering to the version string if provided
 		local arch_filter=""
