@@ -203,7 +203,8 @@ get_apk() {
             local base_apk="$2.apk"
         fi
         local app_slug=$(basename "$4")
-        local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$app_slug-$version-release/" \
+        local version_slug="${version//./-}"  # Replace dots with hyphens
+        local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$app_slug-$version_slug-release/" \
                               "$url_regexp" \
                               "$base_apk" \
                               "$5")
