@@ -12,10 +12,17 @@ patch_twitter_piko() {
 		v="prerelease" apk_name="beta"
 	fi
 	dl_gh "piko revanced-integrations" "crimera" "$v"
-	get_apk "com.twitter.android" "twitter" "twitter" "x-corp/twitter/x-previously-twitter" "Bundle_extract"
-	# Only build arm64-v8a version but name it without architecture
-	split_editor "twitter" "twitter" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64 split_config.mdpi split_config.hdpi split_config.xhdpi split_config.xxhdpi split_config.tvdpi"
-	patch "twitter" "piko"
+	
+	# Patch Twitter (arm64-v8a only):
+	get_patches_key "twitter-piko"
+	get_apk "com.twitter.android" "twitter-beta" "twitter" "x-corp/twitter/x-previously-twitter" "Bundle_extract"
+	
+	# Only generate arm64-v8a version and keep xxhdpi (closest to 441 DPI)
+	split_editor "twitter-beta" "twitter-beta" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64 split_config.mdpi split_config.hdpi split_config.xhdpi split_config.xxxhdpi split_config.tvdpi"
+	patch "twitter-beta" "piko"
+	
+	# Rename the output file
+	mv ./release/twitter-beta-piko.apk ./release/twitter-piko.apk
 }
 
 case "$1" in

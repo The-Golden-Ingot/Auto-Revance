@@ -11,8 +11,12 @@ patch_youtube_rve() {
     get_patches_key "youtube-rve-anddea"
     get_apk "com.google.android.youtube" "youtube-beta" "youtube" "google-inc/youtube/youtube"
     
-    # Only generate arm64-v8a version
-    split_arch "youtube-beta" "anddea" "$(gen_rip_libs armeabi-v7a x86 x86_64)"
+    # Generate arguments to remove architectures and DPIs
+    rip_libs=$(gen_rip_libs armeabi-v7a x86 x86_64)
+    rip_dpi="--rip-dpi xxxhdpi,xhdpi,hdpi,mdpi,ldpi,tvdpi"
+    
+    # Only generate arm64-v8a version with xxhdpi resources
+    split_arch "youtube-beta" "anddea" "$rip_libs $rip_dpi"
     
     # Rename the output file
     mv ./release/youtube-beta-arm64-v8a-anddea.apk ./release/youtube-anddea.apk
