@@ -11,7 +11,7 @@ patch_googlephotos() {
 	revanced_dl
 	# Patch Google photos (Arm64-v8a only):
 	get_patches_key "googlephotos"
-	get_apk "com.google.android.apps.photos" "google-photos" "photos" "google-inc/photos/google-photos"
+	get_apk "com.google.android.apps.photos" "google-photos" "google-photos" "google-inc/photos/google-photos"
 	
 	# Generate arguments to remove DPIs only (no arch removal needed)
 	rip_dpi="--rip-dpi mdpi --rip-dpi hdpi --rip-dpi xhdpi --rip-dpi xxxhdpi --rip-dpi sw600dp --rip-dpi sw672dp --rip-dpi sw720dp --rip-dpi television --rip-dpi watch --rip-dpi car"
@@ -24,7 +24,7 @@ patch_soundcloud() {
 	revanced_dl
 	# Patch SoundCloud (Arm64-v8a only):
 	get_patches_key "soundcloud"
-	get_apk "com.soundcloud.android" "soundcloud" "soundcloud-soundcloud" "soundcloud/soundcloud-soundcloud/soundcloud-play-music-songs" "Bundle_extract"
+	get_apk "com.soundcloud.android" "soundcloud" "soundcloud" "soundcloud/soundcloud-soundcloud/soundcloud-play-music-songs" "Bundle_extract"
 	
 	# First merge the split APK
 	split_editor "soundcloud" "soundcloud-merged" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"

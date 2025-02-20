@@ -245,7 +245,7 @@ get_apk() {
 		else
 			local base_apk="$2.apk"
 		fi
-		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/instagram-$version-release/" \
+		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$3-$version-release/" \
 							  "$url_regexp" \
 							  "$base_apk" \
 							  "$5")
