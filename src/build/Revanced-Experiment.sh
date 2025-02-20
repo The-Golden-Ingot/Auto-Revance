@@ -7,18 +7,10 @@ patch_instagram_rve() {
     dl_gh "ReVancedExperiments" "Aunali321" "latest"
     dl_gh "revanced-cli" "revanced" "latest"
 
-    # Patch Instagram:
     get_patches_key "instagram-revanced-experiments"
-    get_apk "com.instagram.android" "instagram" "instagram-instagram" "instagram/instagram-instagram/instagram-instagram" "Bundle_extract"
-    
-    # Merge the split APK, keeping only arm64-v8a and xxhdpi
-    split_editor "instagram" "instagram-merged" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64 split_config.mdpi split_config.hdpi split_config.xhdpi split_config.xxxhdpi split_config.tvdpi split_config.ldpi"
-    
-    # Patch the merged APK
-    patch "instagram-merged" "revanced-experiments"
-    
-    # Rename the final output file
-    mv ./release/instagram-merged-revanced-experiments.apk ./release/instagram-revanced-experiments.apk
+    version="362.0.0.33.241"
+    get_apk "com.instagram.android" "instagram-arm64-v8a" "instagram-instagram" "instagram/instagram-instagram/instagram-instagram" "arm64-v8a" "nodpi"
+    patch "instagram-arm64-v8a" "revanced-experiments"
 }
 
 case "$1" in
