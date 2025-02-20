@@ -171,30 +171,44 @@ dl_apk() {
     req "$url" "$output"
 }
 get_apk() {
-	if [[ -z $5 ]]; then
-		url_regexp='APK<\/span>'
-	elif [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
-		url_regexp='BUNDLE<\/span>'
-	else
-		case $5 in
-			arm64-v8a) url_regexp='arm64-v8a'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
-			armeabi-v7a) url_regexp='armeabi-v7a'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
-			x86) url_regexp='x86'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
-			x86_64) url_regexp='x86_64'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
-			*) url_regexp='$5'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
-		esac 
-	fi
-	if [ -z "$version" ] && [ "$lock_version" != "1" ]; then
-		if [[ $(ls revanced-cli-*.jar) =~ revanced-cli-([0-9]+) ]]; then
-			num=${BASH_REMATCH[1]}
-			if [ $num -ge 5 ]; then
-				version=$(java -jar *cli*.jar list-patches --with-packages --with-versions *.rvp | awk -v pkg="$1" 'BEGIN { found = 0 } /^Index:/ { found = 0 } /Package name: / { if ($3 == pkg) { found = 1 } } /Compatible versions:/ { if (found) { getline; latest_version = $1; while (getline && $1 ~ /^[0-9]+\./) { latest_version = $1 } print latest_version; exit } }')
-			else
-				version=$(jq -r '[.. | objects | select(.name == "'$1'" and .versions != null) | .versions[]] | reverse | .[0] // ""' *.json | uniq)
-			fi
-		fi
-	fi
-	export version="$version"
+    if [[ -z $5 ]]; then
+        url_regexp='APK<\/span>'
+    elif [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
+        url_regexp='BUNDLE<\/span>'
+    else
+        case $5 in
+            arm64-v8a) url_regexp='arm64-v8a'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
+            armeabi-v7a) url_regexp='armeabi-v7a'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
+            x86) url_regexp='x86'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
+            x86_64) url_regexp='x86_64'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
+            *) url_regexp='$5'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
+        esac 
+    fi
+
+    # Only use patches version for YouTube
+    if [[ "$1" == "com.google.android.youtube" ]]; then
+        if [[ $(ls revanced-cli-*.jar) =~ revanced-cli-([0-9]+) ]]; then
+            num=${BASH_REMATCH[1]}
+            if [ $num -ge 5 ]; then
+                version=$(java -jar *cli*.jar list-patches --with-packages --with-versions *.rvp | awk -v pkg="$1" 'BEGIN { found = 0 } /^Index:/ { found = 0 } /Package name: / { if ($3 == pkg) { found = 1 } } /Compatible versions:/ { if (found) { getline; latest_version = $1; while (getline && $1 ~ /^[0-9]+\./) { latest_version = $1 } print latest_version; exit } }')
+            else
+                version=$(jq -r '[.. | objects | select(.name == "'$1'" and .versions != null) | .versions[]] | reverse | .[0] // ""' *.json | uniq)
+            fi
+        fi
+    else
+        # For all other apps, scrape latest version from APKMirror
+        local attempt=0
+        while [ $attempt -lt 10 ]; do
+            version=$(req "https://www.apkmirror.com/apk/$4/" - | tr '\n' ' ' | sed -n 's/.*Version:\s*\([^<]*\).*/\1/p' | head -n1)
+            if [ ! -z "$version" ]; then
+                break
+            fi
+            ((attempt++))
+            sleep 1
+        done
+    fi
+
+    export version="$version"
     if [[ -n "$version" ]]; then
         green_log "[+] Downloading $3 version: $version $5 $6 $7"
         if [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
@@ -241,13 +255,16 @@ get_apk() {
 		[[ ! -z "$6" ]] && arch_filter="-$6"
 		[[ ! -z "$7" ]] && dpi_filter="-$7"
 		
+		local app_slug=$(basename "$4")
+		local version_slug="${version//./-}"  # Replace dots with hyphens
+		
 		green_log "[+] Downloading $3 version: $version$arch_filter$dpi_filter"
 		if [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
 			local base_apk="$2.apkm"
 		else
 			local base_apk="$2.apk"
 		fi
-		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$3-$version-release/" \
+		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$app_slug-$version_slug-release/" \
 							  "$url_regexp" \
 							  "$base_apk" \
 							  "$5")
