@@ -338,6 +338,7 @@ gen_rip_libs() {
 		echo -n "--rip-lib "$lib" "
 	done
 }
+i=0  # Add index for arm64-v8a
 split_arch() {
 	green_log "[+] Splitting $1 to ${archs[i]}:"
 	if [ -f "./download/$1.apk" ]; then
@@ -347,7 +348,7 @@ split_arch() {
 		$3 \
 		--keystore=./src/_ks.keystore --force \
 		--legacy-options=./src/options/$2.json $excludePatches$includePatches \
-		--out=./release/$1-${archs[i]}-$2.apk\
+		--out=./release/$1-${archs[i]}-$2.apk \
 		./download/$1.apk
 	else
 		red_log "[-] Not found $1.apk"
