@@ -8,15 +8,27 @@ revanced_dl(){
 }
 
 patch_googlephotos() {
-	revanced_dl
-	get_apk "com.google.android.apps.photos" "google-photos.apk" "google-photos" "google-inc/photos" \
-			"apk" "arm64-v8a" "nodpi"
+	set -x  # Enable debug mode
 	
-	# Generate arguments to remove DPIs only (no arch removal needed)
+	revanced_dl
+	
+	# Source settings
+	source ./src/etc/aisettings
+	
+	green_log "[+] Downloading Google Photos APK"
+	get_apk "com.google.android.apps.photos" "google-photos.apk" "google-photos" "${PHOTOS_ORG}/${PHOTOS_REPO}" \
+			"${PHOTOS_TYPE}" "${PHOTOS_ARCH}" "${PHOTOS_DPI}" "" "${PHOTOS_MIN_SDK}"
+	
+	# Generate arguments to remove DPIs only
 	rip_dpi="--rip-dpi mdpi --rip-dpi hdpi --rip-dpi xhdpi --rip-dpi xxxhdpi --rip-dpi sw600dp --rip-dpi sw672dp --rip-dpi sw720dp --rip-dpi television --rip-dpi watch --rip-dpi car"
 	
-	# Process arm64v8 APK with DPI stripping
-	split_arch "google-photos" "revanced" "$rip_dpi"
+	# Process split APK
+	split_process "google-photos" "google-photos-processed" "$rip_dpi"
+	
+	# Patch the processed APK
+	patch "google-photos-processed" "revanced"
+	
+	set +x  # Disable debug mode
 }
 
 patch_soundcloud() {

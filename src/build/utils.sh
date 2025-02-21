@@ -158,18 +158,20 @@ dl_apkmd() {
         repo="${org,,}"  # Convert to lowercase
     fi
     
-    [[ ! -z "$4" ]] && options+=(--arch "$4")
-    [[ ! -z "$5" ]] && options+=(--dpi "$5")
-    [[ ! -z "$6" ]] && options+=(--type "$6")
-    [[ ! -z "$7" ]] && options+=(--version "$7")
-    [[ ! -z "$8" ]] && options+=(--min-android-version "$8")
+    # Create download directory if it doesn't exist
+    mkdir -p "./download"
+    
+    # Build options array
+    [[ ! -z "$4" ]] && options+=("--arch" "$4")
+    [[ ! -z "$5" ]] && options+=("--dpi" "$5")
+    [[ ! -z "$6" ]] && options+=("--type" "$6")
+    [[ ! -z "$7" ]] && options+=("--version" "$7")
+    [[ ! -z "$8" ]] && options+=("--min-android-version" "$8")
     
     green_log "[+] Downloading ${org}/${repo} with options: ${options[*]}"
     
-    # Ensure download directory exists
-    mkdir -p "./download"
-    
-    if npx --no-install apkmirror-downloader download \
+    # Use node directly instead of npx
+    if node ./node_modules/apkmirror-downloader/dist/index.js download \
         --org "$org" \
         --repo "$repo" \
         --outDir "./download" \
@@ -312,6 +314,34 @@ split_arch() {
         return 0
     else
         red_log "[-] Failed to process architecture split"
+        return 1
+    fi
+}
+
+# Add a new function to handle split processing
+split_process() {
+    local input="$1"
+    local output="$2"
+    local options="$3"
+    
+    if [[ ! -f "./download/${input}.apk" ]]; then
+        red_log "[-] Input APK not found: ${input}.apk"
+        return 1
+    }
+    
+    green_log "[+] Processing split for ${input}"
+    
+    # Create release directory if it doesn't exist
+    mkdir -p "./release"
+    
+    if java -jar *cli*.jar split-apk \
+        --input "./download/${input}.apk" \
+        --output "./release/${output}.apk" \
+        ${options}; then
+        green_log "[+] Successfully processed split for ${input}"
+        return 0
+    else
+        red_log "[-] Failed to process split for ${input}"
         return 1
     fi
 }

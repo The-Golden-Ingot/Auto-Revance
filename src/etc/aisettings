@@ -8,4 +8,12 @@ SOUNDCLOUD_DPI="nodpi"
 SOUNDCLOUD_TYPE="bundle"
 SOUNDCLOUD_MIN_SDK="android5.0"
 
+# Google Photos
+PHOTOS_ORG="google-inc"
+PHOTOS_REPO="photos"
+PHOTOS_ARCH="arm64-v8a"
+PHOTOS_DPI="nodpi"
+PHOTOS_TYPE="apk"
+PHOTOS_MIN_SDK="android6.0"
+
 # Add other app settings as needed... 
