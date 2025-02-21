@@ -159,7 +159,7 @@ setup_apkmd() {
 
 get_apk() {
     # Parse organization and repo from the APKMirror path
-    IFS='/' read -r org repo <<< "$4"
+    IFS='/' read -r org repo <<< "$2"
     
     # Build APKMD command arguments
     local args=(
@@ -169,44 +169,41 @@ get_apk() {
         "--out-dir" "./download"
     )
     
-    # Add version if available and if it's YouTube (which needs specific version)
-    if [ -n "$8" ] && [ "$2" == "youtube" ]; then
-        args+=("--version" "$8")
+    # Add version if available and if it's YouTube
+    if [ -n "$6" ] && [ "$1" == "youtube" ]; then
+        args+=("--version" "$6")
     fi
     
-    # Add architecture filter if specified (arm64-v8a, armeabi-v7a, etc)
-    [ -n "$6" ] && args+=("--arch" "$6")
+    # Add architecture filter if specified
+    [ -n "$4" ] && args+=("--arch" "$4")
     
-    # Add DPI filter if specified (xxhdpi, etc)
-    [ -n "$7" ] && args+=("--dpi" "$7")
+    # Add DPI filter if specified
+    [ -n "$5" ] && args+=("--dpi" "$5")
     
     # Set type (apk or bundle)
-    if [[ $5 == "Bundle"* ]]; then
+    if [[ $3 == "bundle" ]]; then
         args+=("--type" "bundle")
     else
         args+=("--type" "apk")
     fi
 
     # Set output filename
-    local base_apk="$2.apk"
-    [ "$5" == "Bundle"* ] && base_apk="$2.apkm"
-    args+=("--outfile" "$2")
+    local base_apk="$1.apk"
+    [ "$3" == "bundle" ] && base_apk="$1.apkm"
+    args+=("--outFile" "$1")
 
-    green_log "[+] Downloading $3 using APKMD: ${args[*]}"
+    green_log "[+] Downloading $1 using APKMD: ${args[*]}"
     
     # Execute APKMD command
     if $APKMD "${args[@]}"; then
-        green_log "[+] Successfully downloaded $2"
+        green_log "[+] Successfully downloaded $1"
     else
-        red_log "[-] Failed to download $2"
+        red_log "[-] Failed to download $1"
         exit 1
     fi
 
-    # Handle bundle files
-    if [[ $5 == "Bundle" ]]; then
-        green_log "[+] Merging splits apk to standalone apk"
-        java -jar $APKEditor m -i "./download/$2.apkm" -o "./download/$2.apk" > /dev/null 2>&1
-    elif [[ $5 == "Bundle_extract" ]]; then
+    # Handle post-download processing for bundles
+    if [[ $3 == "bundle" ]]; then
         unzip "./download/$base_apk" -d "./download/$(basename "$base_apk" .apkm)" > /dev/null 2>&1
     fi
 }
