@@ -24,11 +24,15 @@ patch_soundcloud() {
 	revanced_dl
 	# Patch SoundCloud (Arm64-v8a only):
 	get_patches_key "soundcloud"
-	get_apk "com.soundcloud.android" "soundcloud" "soundcloud-soundcloud" "soundcloud-play-music-songs" "Bundle_extract"
 	
+	# Download latest version without hardcoding
+	get_apk "com.soundcloud.android" "soundcloud" "soundcloud-soundcloud" \
+		"soundcloud-play-music-songs/soundcloud" "Bundle_extract" \
+		"arm64-v8a"
+
 	# First merge the split APK
 	split_editor "soundcloud" "soundcloud-merged" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
-	
+
 	# Generate arguments to remove DPIs for the merged APK
 	rip_libs=$(gen_rip_libs armeabi-v7a x86 x86_64)
 	rip_dpi="--rip-dpi mdpi --rip-dpi hdpi --rip-dpi xhdpi --rip-dpi xxxhdpi --rip-dpi tvdpi \

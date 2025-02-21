@@ -169,8 +169,10 @@ get_apk() {
         "--out-dir" "./download"
     )
     
-    # Add version if available
-    [ -n "$version" ] && args+=("--version" "$version")
+    # Add version if available and if it's YouTube (which needs specific version)
+    if [ -n "$8" ] && [ "$2" == "youtube" ]; then
+        args+=("--version" "$8")
+    fi
     
     # Add architecture filter if specified (arm64-v8a, armeabi-v7a, etc)
     [ -n "$6" ] && args+=("--arch" "$6")
