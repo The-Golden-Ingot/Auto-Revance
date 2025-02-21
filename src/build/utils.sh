@@ -1,22 +1,32 @@
 #!/bin/bash
 
-mkdir -p ./release ./download
+mkdir ./release ./download
 
-# Colors for logging
-red='\033[0;31m'
-green='\033[0;32m'
-nc='\033[0m'
+#Setup pup for download apk files
+wget -qO- "https://api.github.com/repos/ericchiang/pup/releases/latest" \
+    | jq -r '.assets[] | select(.name | endswith("linux_amd64.zip")) | .browser_download_url' \
+    | wget -q -i - -O ./pup.zip
+unzip "./pup.zip" -d "./" > /dev/null 2>&1
+pup="./pup"
 
-# Logging functions
-red_log() { echo -e "${red}$1${nc}"; }
-green_log() { echo -e "${green}$1${nc}"; }
+# Add APKMD setup
+setup_apkmd
 
-# Install required packages
-npm install apkmirror-downloader@latest
-
-# Setup APKEditor
-wget -q -O ./APKEditor.jar https://github.com/REAndroid/APKEditor/releases/download/V1.4.1/APKEditor-1.4.1.jar
+#Setup APKEditor for install combine split apks
+wget -qO- "https://api.github.com/repos/REAndroid/APKEditor/releases/latest" \
+    | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url' \
+    | wget -q -i - -O ./APKEditor.jar
 APKEditor="./APKEditor.jar"
+
+#################################################
+
+# Colored output logs
+green_log() {
+    echo -e "\e[32m$1\e[0m"
+}
+red_log() {
+    echo -e "\e[31m$1\e[0m"
+}
 
 #################################################
 
@@ -131,85 +141,64 @@ get_patches_key() {
 
 #################################################
 
-# Download apks files using APKMD (APKMirror Downloader)
-# Parameters:
-#   $1: organization (e.g., google-inc)
-#   $2: repository (e.g., youtube)
-#   $3: output filename
-#   $4: architecture (optional)
-#   $5: DPI (optional)
-#   $6: type (apk/bundle)
-#   $7: version (optional)
-#   $8: minimum Android version (optional)
-dl_apkmd() {
-    local org="$1"
-    local repo="$2"
-    local output="$3"
-    local options=()
-    
-    # Handle empty repo case
-    [[ -z "$repo" ]] && repo="${org//-/_}"  # Convert hyphens to underscores
-    
-    [[ ! -z "$4" ]] && options+=(--arch "$4")
-    [[ ! -z "$5" ]] && options+=(--dpi "$5")
-    [[ ! -z "$6" ]] && options+=(--type "$6")
-    [[ ! -z "$7" ]] && options+=(--version "$7")
-    [[ ! -z "$8" ]] && options+=(--min-android-version "$8")
-    
-    green_log "[+] Downloading ${org}/${repo} with options: ${options[*]}"
-    
-    # Directly call Node.js with explicit path
-    if node --no-warnings ./node_modules/apkmirror-downloader/dist/cli.js download \
-        --org "$org" \
-        --repo "$repo" \
-        --outDir "./download" \
-        --outFile "$output" \
-        "${options[@]}"; then
-        green_log "[+] Successfully downloaded ${output}"
-        return 0
-    else
-        red_log "[-] Failed to download ${output}"
-        return 1
-    fi
+# Download APKs using APKMD CLI
+setup_apkmd() {
+    # Download and setup APKMD
+    wget -q -O ./apkmd https://github.com/tanishqmanuja/apkmirror-downloader/releases/latest/download/apkmd
+    chmod +x ./apkmd
+    APKMD="./apkmd"
 }
 
-# Unified APK getter using APKMD
 get_apk() {
-    local package_name="$1"
-    local output_name="$2"
-    local app_name="$3"
-    local apkmirror_path="$4"
-    local apk_type="${5:-apk}"
-    local arch="${6:-}"
-    local dpi="${7:-}"
-    local version="${8:-}"
-    local min_android="${9:-}"
-
-    IFS='/' read -ra path_parts <<< "$apkmirror_path"
-    local org="${path_parts[0]}"
-    local repo="${path_parts[1]}"
-
-    # Validate version format if specified
-    if [[ -n "$version" && ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-        red_log "[-] Invalid version format: $version"
-        return 1
+    # Parse organization and repo from the APKMirror path
+    IFS='/' read -r org repo <<< "$4"
+    
+    # Build APKMD command arguments
+    local args=(
+        download
+        --org "$org"
+        --repo "$repo"
+        --out-dir "./download"
+    )
+    
+    # Add version if available
+    [ -n "$version" ] && args+=(--version "$version")
+    
+    # Add architecture filter if specified (arm64-v8a, armeabi-v7a, etc)
+    [ -n "$6" ] && args+=(--arch "$6")
+    
+    # Add DPI filter if specified (xxhdpi, etc)
+    [ -n "$7" ] && args+=(--dpi "$7")
+    
+    # Set type (apk or bundle)
+    if [[ $5 == "Bundle"* ]]; then
+        args+=(--type "bundle")
+    else
+        args+=(--type "apk")
     fi
 
-    # Try specified version first
-    if [[ -n "$version" ]]; then
-        dl_apkmd "$org" "$repo" "$output_name" "$arch" "$dpi" "$apk_type" "$version" "$min_android" && return 0
+    # Set output filename
+    local base_apk="$2.apk"
+    [ "$5" == "Bundle"* ] && base_apk="$2.apkm"
+    args+=(--out-file "$2")
+
+    green_log "[+] Downloading $3 using APKMD: ${args[*]}"
+    
+    # Execute APKMD command
+    if $APKMD "${args[@]}"; then
+        green_log "[+] Successfully downloaded $2"
+    else
+        red_log "[-] Failed to download $2"
+        exit 1
     fi
 
-    # Fallback to latest version
-    local attempt=0
-    while [ $attempt -lt 3 ]; do
-        dl_apkmd "$org" "$repo" "$output_name" "$arch" "$dpi" "$apk_type" "" "$min_android" && return 0
-        ((attempt++))
-        sleep 1
-    done
-
-    red_log "[-] Failed to download after 3 attempts"
-    return 1
+    # Handle bundle files
+    if [[ $5 == "Bundle" ]]; then
+        green_log "[+] Merging splits apk to standalone apk"
+        java -jar $APKEditor m -i "./download/$2.apkm" -o "./download/$2.apk" > /dev/null 2>&1
+    elif [[ $5 == "Bundle_extract" ]]; then
+        unzip "./download/$base_apk" -d "./download/$(basename "$base_apk" .apkm)" > /dev/null 2>&1
+    fi
 }
 
 #################################################
@@ -257,21 +246,51 @@ patch() {
 #################################################
 
 split_editor() {
-    local input="$1"
-    local output="$2"
-    local mode="$3"
-    local configs="$4"
-    
-    green_log "[+] Processing split APK: $input"
-    if java -jar "$APKEditor" split-apk \
-        --input "./download/$input.apkm" \
-        --output "./download/$output.apk" \
-        --$mode "$configs"; then
-        green_log "[+] Split APK processed successfully"
+    if [[ -z "$3" || -z "$4" ]]; then
+        green_log "[+] Merge splits apk to standalone apk"
+        java -jar $APKEditor m -i "./download/$1" -o "./download/$1.apk" > /dev/null 2>&1
         return 0
+    fi
+    
+    green_log "[+] Processing split APK configurations"
+    IFS=' ' read -r -a include_files <<< "$4"
+    mkdir -p "./download/$2"
+    
+    # Copy base APK first
+    if [[ -f "./download/$1/base.apk" ]]; then
+        cp -f "./download/$1/base.apk" "./download/$2/" > /dev/null 2>&1
     else
-        red_log "[-] Failed to process split APK"
-        return 1
+        red_log "[-] Base APK not found"
+        exit 1
+    fi
+    
+    # Process other splits
+    for file in "./download/$1"/*.apk; do
+        filename=$(basename "$file")
+        basename_no_ext="${filename%.apk}"
+        
+        # Skip base.apk as it's already handled
+        if [[ "$filename" == "base.apk" ]]; then
+            continue
+        fi
+        
+        if [[ "$3" == "include" ]]; then
+            if [[ " ${include_files[*]} " =~ " ${basename_no_ext} " ]]; then
+                cp -f "$file" "./download/$2/" > /dev/null 2>&1 || green_log "[!] Skipping non-existent split: $basename_no_ext"
+            fi
+        elif [[ "$3" == "exclude" ]]; then
+            if [[ ! " ${include_files[*]} " =~ " ${basename_no_ext} " ]]; then
+                cp -f "$file" "./download/$2/" > /dev/null 2>&1 || green_log "[!] Skipping non-existent split: $basename_no_ext"
+            fi
+        fi
+    done
+
+    green_log "[+] Merge splits apk to standalone apk"
+    java -jar $APKEditor m -i ./download/$2 -o ./download/$2.apk > /dev/null 2>&1
+    
+    if [ $? -ne 0 ]; then
+        red_log "[-] Failed to merge APK splits"
+        exit 1
     fi
 }
 
@@ -281,55 +300,82 @@ split_editor() {
 archs=("arm64-v8a" "armeabi-v7a" "x86_64" "x86")
 libs=("armeabi-v7a x86_64 x86" "arm64-v8a x86_64 x86" "armeabi-v7a arm64-v8a x86" "armeabi-v7a arm64-v8a x86_64")
 gen_rip_libs() {
-    local libs=""
-    for lib in "$@"; do
-        libs+=" --rip-lib $lib"
-    done
-    echo "$libs"
+	for lib in $@; do
+		echo -n "--rip-lib "$lib" "
+	done
 }
 i=0  # Add index for arm64-v8a
 split_arch() {
-    local input="$1"
-    local suffix="$2"
-    local args="$3"
-    
-    green_log "[+] Processing architecture split: $input"
-    if java -jar "$APKEditor" process \
-        --input "./download/$input.apk" \
-        --output "./release/$input-$suffix.apk" \
-        $args; then
-        green_log "[+] Architecture split processed successfully"
-        return 0
-    else
-        red_log "[-] Failed to process architecture split"
-        return 1
+    green_log "[+] Splitting $1 to ${archs[i]}:"
+    if [ ! -f "./download/$1.apk" ]; then
+        red_log "[-] Not found $1.apk"
+        exit 1
     fi
-}
 
-# Add a new function to handle split processing
-split_process() {
-    local input="$1"
-    local output="$2"
-    local options="$3"
+    unset CI GITHUB_ACTION GITHUB_ACTIONS GITHUB_ACTOR GITHUB_ENV GITHUB_EVENT_NAME GITHUB_EVENT_PATH GITHUB_HEAD_REF GITHUB_JOB GITHUB_REF GITHUB_REPOSITORY GITHUB_RUN_ID GITHUB_RUN_NUMBER GITHUB_SHA GITHUB_WORKFLOW GITHUB_WORKSPACE RUN_ID RUN_NUMBER
     
-    if [[ ! -f "./download/${input}.apk" ]]; then
-        red_log "[-] Input APK not found: ${input}.apk"
-        return 1
-    }
+    # Extract DPI and lib arguments
+    local dpi_args="" lib_args=""
+    for arg in $3; do
+        if [[ "$arg" == "--rip-dpi"* ]]; then
+            dpi_args+="$arg "
+        elif [[ "$arg" == "--rip-lib"* ]]; then
+            lib_args+="$arg "
+        fi
+    done
     
-    green_log "[+] Processing split for ${input}"
-    
-    # Create release directory if it doesn't exist
-    mkdir -p "./release"
-    
-    if java -jar *cli*.jar split-apk \
-        --input "./download/${input}.apk" \
-        --output "./release/${output}.apk" \
-        ${options}; then
-        green_log "[+] Successfully processed split for ${input}"
+    # Try with all modifications first
+    if eval java -jar revanced-cli*.jar patch \
+        -p *.rvp \
+        $3 \
+        --keystore=./src/_ks.keystore --force \
+        --legacy-options=./src/options/$2.json $excludePatches$includePatches \
+        --out=./release/$1-${archs[i]}-$2.apk \
+        ./download/$1.apk; then
         return 0
-    else
-        red_log "[-] Failed to process split for ${input}"
-        return 1
     fi
+    
+    green_log "[!] Failed with all modifications, trying individual stripping"
+    
+    # Try with only DPI stripping if DPI args exist
+    if [ ! -z "$dpi_args" ]; then
+        green_log "[+] Attempting DPI stripping only"
+        if eval java -jar revanced-cli*.jar patch \
+            -p *.rvp \
+            $dpi_args \
+            --keystore=./src/_ks.keystore --force \
+            --legacy-options=./src/options/$2.json $excludePatches$includePatches \
+            --out=./release/$1-${archs[i]}-$2.apk \
+            ./download/$1.apk; then
+            return 0
+        fi
+    fi
+    
+    # Try with only lib stripping if lib args exist
+    if [ ! -z "$lib_args" ]; then
+        green_log "[+] Attempting lib stripping only"
+        if eval java -jar revanced-cli*.jar patch \
+            -p *.rvp \
+            $lib_args \
+            --keystore=./src/_ks.keystore --force \
+            --legacy-options=./src/options/$2.json $excludePatches$includePatches \
+            --out=./release/$1-${archs[i]}-$2.apk \
+            ./download/$1.apk; then
+            return 0
+        fi
+    fi
+    
+    # If all stripping attempts fail, try without any modifications
+    green_log "[!] All stripping attempts failed, trying without modifications"
+    if eval java -jar revanced-cli*.jar patch \
+        -p *.rvp \
+        --keystore=./src/_ks.keystore --force \
+        --legacy-options=./src/options/$2.json $excludePatches$includePatches \
+        --out=./release/$1-${archs[i]}-$2.apk \
+        ./download/$1.apk; then
+        return 0
+    fi
+    
+    red_log "[-] Patching failed completely"
+    exit 1
 }

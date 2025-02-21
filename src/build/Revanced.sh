@@ -8,56 +8,40 @@ revanced_dl(){
 }
 
 patch_googlephotos() {
-	set -x  # Enable debug mode
-	
 	revanced_dl
+	# Patch Google photos (Arm64-v8a only):
+	get_patches_key "googlephotos"
+	get_apk "com.google.android.apps.photos" "google-photos" "google-photos" "google-inc/photos"
 	
-	# Source settings
-	source ./src/etc/aisettings
-	
-	green_log "[+] Downloading Google Photos APK"
-	get_apk "com.google.android.apps.photos" "google-photos.apk" "google-photos" "${PHOTOS_ORG}/${PHOTOS_REPO}" \
-			"${PHOTOS_TYPE}" "${PHOTOS_ARCH}" "${PHOTOS_DPI}" "" "${PHOTOS_MIN_SDK}"
-	
-	# Generate arguments to remove DPIs only
+	# Generate arguments to remove DPIs only (no arch removal needed)
 	rip_dpi="--rip-dpi mdpi --rip-dpi hdpi --rip-dpi xhdpi --rip-dpi xxxhdpi --rip-dpi sw600dp --rip-dpi sw672dp --rip-dpi sw720dp --rip-dpi television --rip-dpi watch --rip-dpi car"
 	
-	# Process split APK
-	split_process "google-photos" "google-photos-processed" "$rip_dpi"
-	
-	# Patch the processed APK
-	patch "google-photos-processed" "revanced"
-	
-	set +x  # Disable debug mode
+	# Process arm64v8 APK with DPI stripping
+	split_arch "google-photos" "revanced" "$rip_dpi"
 }
 
 patch_soundcloud() {
-	set -x  # Enable debug mode
 	revanced_dl
+	# Patch SoundCloud (Arm64-v8a only):
+	get_patches_key "soundcloud"
+	get_apk "com.soundcloud.android" "soundcloud" "soundcloud-soundcloud" "soundcloud-play-music-songs" "Bundle_extract"
 	
-	green_log "[+] Downloading SoundCloud APK"
-	get_apk "com.soundcloud.android" "soundcloud.apkm" "soundcloud" "soundcloud-play-music-songs" \
-			"bundle" "universal" "nodpi"
-	
-	green_log "[+] Processing split APK"
+	# First merge the split APK
 	split_editor "soundcloud" "soundcloud-merged" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
 	
-	green_log "[+] Generating lib arguments"
+	# Generate arguments to remove DPIs for the merged APK
 	rip_libs=$(gen_rip_libs armeabi-v7a x86 x86_64)
-	
-	green_log "[+] Setting DPI arguments"
 	rip_dpi="--rip-dpi mdpi --rip-dpi hdpi --rip-dpi xhdpi --rip-dpi xxxhdpi --rip-dpi tvdpi \
 			 --rip-dpi sw600dp --rip-dpi sw720dp --rip-dpi sw800dp --rip-dpi television \
 			 --rip-dpi watch --rip-dpi large --rip-dpi xlarge --rip-dpi small \
 			 --rip-dpi h320dp --rip-dpi h360dp --rip-dpi h480dp --rip-dpi h500dp --rip-dpi h550dp --rip-dpi h720dp \
 			 --rip-dpi w320dp --rip-dpi w360dp --rip-dpi w400dp --rip-dpi w600dp"
 	
-	green_log "[+] Processing architecture split"
+	# Now strip DPIs and libs from the merged APK
 	split_arch "soundcloud-merged" "revanced" "$rip_libs $rip_dpi"
 	
-	green_log "[+] Renaming output file"
+	# Rename the final output file
 	mv ./release/soundcloud-merged-arm64-v8a-revanced.apk ./release/soundcloud-revanced.apk
-	set +x  # Disable debug mode
 }
 
 case "$1" in

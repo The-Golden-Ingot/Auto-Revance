@@ -40,38 +40,22 @@ jobs:
       - name: Preparing to patch
         uses: ./.github/actions/preparing
       - name: Install library
-        env:
-          DEBIAN_FRONTEND: noninteractive
-          TZ: Etc/UTC
         run: |
-          ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
           apt-get update
-          apt-get install -y curl jq wget unzip nodejs npm
+          apt-get install -y curl jq wget unzip
       - name: Check github connection
         id: check-gh-rvb
         run: bash src/etc/connection.sh
       - name: Patch apk
         id: patch-rvb
         if: steps.check-gh-rvb.outputs.internet_error == '0'
-        run: |
-          set -e  # Exit on any error
-          bash src/build/Revanced.sh ${{ matrix.app }}
-        env:
-          DEBIAN_FRONTEND: noninteractive
-          TZ: Etc/UTC
+        run: bash src/build/Revanced.sh ${{ matrix.app }}
       - name: Cache
         uses: actions/upload-artifact@v4
         with:
           name: revanced_${{ matrix.app }}
           path: |
             ./release/*.apk
-      - name: Cache npm packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
   release_rv_beta:
     name: Release Revanced
     needs: patch_rv_beta
@@ -101,13 +85,9 @@ jobs:
       - name: Preparing to patch
         uses: ./.github/actions/preparing
       - name: Install library
-        env:
-          DEBIAN_FRONTEND: noninteractive
-          TZ: Etc/UTC
         run: |
-          ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
           apt-get update
-          apt-get install -y curl jq wget unzip nodejs npm
+          apt-get install -y curl jq wget unzip
       - name: Check github connection
         id: check-gh-rve-anddea-beta
         run: bash src/etc/connection.sh
@@ -149,13 +129,9 @@ jobs:
       - name: Preparing to patch
         uses: ./.github/actions/preparing
       - name: Install library
-        env:
-          DEBIAN_FRONTEND: noninteractive
-          TZ: Etc/UTC
         run: |
-          ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
           apt-get update
-          apt-get install -y curl jq wget unzip nodejs npm
+          apt-get install -y curl jq wget unzip
       - name: Check github connection
         id: check-gh-piko-beta
         run: bash src/etc/connection.sh
@@ -197,13 +173,9 @@ jobs:
       - name: Preparing to patch
         uses: ./.github/actions/preparing
       - name: Install library
-        env:
-          DEBIAN_FRONTEND: noninteractive
-          TZ: Etc/UTC
         run: |
-          ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
           apt-get update
-          apt-get install -y curl jq wget unzip nodejs npm
+          apt-get install -y curl jq wget unzip
       - name: Check github connection
         id: check-gh-rv-experiments
         run: bash src/etc/connection.sh
