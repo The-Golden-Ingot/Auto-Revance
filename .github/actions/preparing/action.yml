@@ -14,3 +14,10 @@ runs:
 #    - name: Setup Cloudflare Warp
 #      shell: bash
 #      run: bash src/etc/cf_warp.sh
+    - name: Install dependencies
+      shell: bash
+      run: |
+        npm install --omit=dev --no-fund --no-audit \
+          apkmirror-downloader@latest \
+          @revanced/cli@latest \
+          ua-parser-js

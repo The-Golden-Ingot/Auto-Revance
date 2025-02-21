@@ -147,31 +147,19 @@ dl_apkmd() {
     local output="$3"
     local options=()
     
-    # Validate required parameters
-    if [[ -z "$org" ]]; then
-        red_log "[-] Organization name is required"
-        return 1
-    fi
+    # Handle empty repo case
+    [[ -z "$repo" ]] && repo="${org//-/_}"  # Convert hyphens to underscores
     
-    # Handle empty repo by using org name
-    if [[ -z "$repo" ]]; then
-        repo="${org,,}"  # Convert to lowercase
-    fi
-    
-    # Create download directory if it doesn't exist
-    mkdir -p "./download"
-    
-    # Build options array
-    [[ ! -z "$4" ]] && options+=("--arch" "$4")
-    [[ ! -z "$5" ]] && options+=("--dpi" "$5")
-    [[ ! -z "$6" ]] && options+=("--type" "$6")
-    [[ ! -z "$7" ]] && options+=("--version" "$7")
-    [[ ! -z "$8" ]] && options+=("--min-android-version" "$8")
+    [[ ! -z "$4" ]] && options+=(--arch "$4")
+    [[ ! -z "$5" ]] && options+=(--dpi "$5")
+    [[ ! -z "$6" ]] && options+=(--type "$6")
+    [[ ! -z "$7" ]] && options+=(--version "$7")
+    [[ ! -z "$8" ]] && options+=(--min-android-version "$8")
     
     green_log "[+] Downloading ${org}/${repo} with options: ${options[*]}"
     
-    # Use node directly instead of npx
-    if node ./node_modules/apkmirror-downloader/dist/index.js download \
+    # Directly call Node.js with explicit path
+    if node --no-warnings ./node_modules/apkmirror-downloader/dist/cli.js download \
         --org "$org" \
         --repo "$repo" \
         --outDir "./download" \
