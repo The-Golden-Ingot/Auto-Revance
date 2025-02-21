@@ -3,13 +3,15 @@
 source src/build/utils.sh
 
 patch_youtube_rve() {
+    get_apk "com.google.android.youtube" "youtube-beta.apk" "youtube" "google-inc/youtube" \
+            "apk" "arm64-v8a" "xxhdpi" "" "android11"
+    
     # Download requirements
     dl_gh "revanced-patches" "anddea" "prerelease"
     dl_gh "revanced-cli" "inotia00" "latest"
 
     # Patch YouTube (arm64-v8a only):
     get_patches_key "youtube-rve-anddea"
-    get_apk "com.google.android.youtube" "youtube-beta" "youtube" "google-inc/youtube/youtube"
     
     # Generate arguments to remove architectures and common DPIs
     rip_libs=$(gen_rip_libs armeabi-v7a x86 x86_64)

@@ -42,7 +42,7 @@ jobs:
       - name: Install library
         run: |
           apt-get update
-          apt-get install -y curl jq wget unzip
+          apt-get install -y curl jq wget unzip nodejs npm
       - name: Check github connection
         id: check-gh-rvb
         run: bash src/etc/connection.sh
@@ -56,6 +56,13 @@ jobs:
           name: revanced_${{ matrix.app }}
           path: |
             ./release/*.apk
+      - name: Cache npm packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
   release_rv_beta:
     name: Release Revanced
     needs: patch_rv_beta
@@ -87,7 +94,7 @@ jobs:
       - name: Install library
         run: |
           apt-get update
-          apt-get install -y curl jq wget unzip
+          apt-get install -y curl jq wget unzip nodejs npm
       - name: Check github connection
         id: check-gh-rve-anddea-beta
         run: bash src/etc/connection.sh
@@ -131,7 +138,7 @@ jobs:
       - name: Install library
         run: |
           apt-get update
-          apt-get install -y curl jq wget unzip
+          apt-get install -y curl jq wget unzip nodejs npm
       - name: Check github connection
         id: check-gh-piko-beta
         run: bash src/etc/connection.sh
@@ -175,7 +182,7 @@ jobs:
       - name: Install library
         run: |
           apt-get update
-          apt-get install -y curl jq wget unzip
+          apt-get install -y curl jq wget unzip nodejs npm
       - name: Check github connection
         id: check-gh-rv-experiments
         run: bash src/etc/connection.sh
