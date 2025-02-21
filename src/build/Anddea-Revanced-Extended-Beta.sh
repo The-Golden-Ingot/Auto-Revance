@@ -9,7 +9,7 @@ patch_youtube_rve() {
 
     # Patch YouTube (arm64-v8a only):
     get_patches_key "youtube-rve-anddea"
-    get_apk "youtube-beta" "google-inc/youtube/youtube"
+    get_apk "com.google.android.youtube" "youtube-beta" "youtube" "google-inc/youtube/youtube"
     
     # Generate arguments to remove architectures and common DPIs
     rip_libs=$(gen_rip_libs armeabi-v7a x86 x86_64)

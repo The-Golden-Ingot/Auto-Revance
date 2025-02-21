@@ -2,28 +2,12 @@
 
 mkdir ./release ./download
 
-# Download APKs using APKMD CLI
-setup_apkmd() {
-    # Download and setup APKMD
-    wget -q -O ./apkmd https://github.com/tanishqmanuja/apkmirror-downloader/releases/latest/download/apkmd
-    chmod +x ./apkmd
-    APKMD="./apkmd"
-}
-
 #Setup pup for download apk files
-wget -qO- "https://api.github.com/repos/ericchiang/pup/releases/latest" \
-    | jq -r '.assets[] | select(.name | endswith("linux_amd64.zip")) | .browser_download_url' \
-    | wget -q -i - -O ./pup.zip
+wget -q -O ./pup.zip https://github.com/ericchiang/pup/releases/download/v0.4.0/pup_v0.4.0_linux_amd64.zip
 unzip "./pup.zip" -d "./" > /dev/null 2>&1
 pup="./pup"
-
-# Add APKMD setup
-setup_apkmd
-
 #Setup APKEditor for install combine split apks
-wget -qO- "https://api.github.com/repos/REAndroid/APKEditor/releases/latest" \
-    | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url' \
-    | wget -q -i - -O ./APKEditor.jar
+wget -q -O ./APKEditor.jar https://github.com/REAndroid/APKEditor/releases/download/V1.4.1/APKEditor-1.4.1.jar
 APKEditor="./APKEditor.jar"
 
 #################################################
@@ -149,88 +133,161 @@ get_patches_key() {
 
 #################################################
 
-# Download APKs using APKMD CLI
-setup_apkmd() {
-    # Download and setup APKMD
-    wget -q -O ./apkmd https://github.com/tanishqmanuja/apkmirror-downloader/releases/latest/download/apkmd
-    chmod +x ./apkmd
-    APKMD="./apkmd"
+# Download apks files from APKMirror:
+_req() {
+    if [ "$2" = "-" ]; then
+        wget -nv -O "$2" --header="User-Agent: Mozilla/5.0 (Android 14; Mobile; rv:134.0) Gecko/134.0 Firefox/134.0" --header="Content-Type: application/octet-stream" --header="Accept-Language: en-US,en;q=0.9" --header="Connection: keep-alive" --header="Upgrade-Insecure-Requests: 1" --header="Cache-Control: max-age=0" --header="Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8" --keep-session-cookies --timeout=30 "$1" || rm -f "$2"
+    else
+        wget -nv -O "./download/$2" --header="User-Agent: Mozilla/5.0 (Android 14; Mobile; rv:134.0) Gecko/134.0 Firefox/134.0" --header="Content-Type: application/octet-stream" --header="Accept-Language: en-US,en;q=0.9" --header="Connection: keep-alive" --header="Upgrade-Insecure-Requests: 1" --header="Cache-Control: max-age=0" --header="Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8" --keep-session-cookies --timeout=30 "$1" || rm -f "./download/$2"
+    fi
 }
-
+req() {
+    _req "$1" "$2"
+}
+dl_apk() {
+    local url="$1" regexp="$2" output="$3" type="$4"
+    local arch_filter="$5" dpi_filter="$6"
+    
+    # Add filters to URL if provided
+    if [[ ! -z "$arch_filter" ]] || [[ ! -z "$dpi_filter" ]]; then
+        url="${url%/}"  # Remove trailing slash if present
+        [[ ! -z "$arch_filter" ]] && url="${url%/}-$arch_filter"
+        [[ ! -z "$dpi_filter" ]] && url="${url%/}-$dpi_filter"
+        url="$url/"
+    fi
+    
+    if [[ -z "$4" ]] || [[ $4 == "Bundle" ]] || [[ $4 == "Bundle_extract" ]]; then
+        url="https://www.apkmirror.com$(req "$url" - | tr '\n' ' ' | sed -n "s/.*<a[^>]*href=\"\([^\"]*\)\".*${regexp}.*/\1/p")"
+    else
+        url="https://www.apkmirror.com$(req "$url" - | tr '\n' ' ' | sed -n "s/href=\"/@/g; s;.*${regexp}.*;\1;p")"
+    fi
+    url="https://www.apkmirror.com$(req "$url" - | grep -oP 'class="[^"]*downloadButton[^"]*".*?href="\K[^"]+')"
+    url="https://www.apkmirror.com$(req "$url" - | grep -oP 'id="download-link".*?href="\K[^"]+')"
+    
+    if [[ "$url" == "https://www.apkmirror.com" ]]; then
+        exit 0
+    fi
+    
+    req "$url" "$output"
+}
 get_apk() {
-    # Parse organization and repo from the APKMirror path
-    IFS='/' read -r org repo <<< "$2"
-    
-    # Build APKMD command arguments
-    local args=(
-        "download"
-        "$org"  # First required argument
-        "$repo" # Second required argument
-        "--out-dir" "./download"
-    )
-    
-    # Add version if available and if it's YouTube
-    if [ -n "$6" ] && [ "$1" == "youtube" ]; then
-        args+=("--version" "$6")
-    fi
-    
-    # Add architecture filter if specified
-    [ -n "$4" ] && args+=("--arch" "$4")
-    
-    # Add DPI filter if specified
-    [ -n "$5" ] && args+=("--dpi" "$5")
-    
-    # Set type (apk or bundle)
-    if [[ $3 == "bundle" ]]; then
-        args+=("--type" "bundle")
+    if [[ -z $5 ]]; then
+        url_regexp='APK<\/span>'
+    elif [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
+        url_regexp='BUNDLE<\/span>'
     else
-        args+=("--type" "apk")
+        case $5 in
+            arm64-v8a) url_regexp='arm64-v8a'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
+            armeabi-v7a) url_regexp='armeabi-v7a'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
+            x86) url_regexp='x86'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
+            x86_64) url_regexp='x86_64'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
+            *) url_regexp='$5'"[^@]*$7"''"[^@]*$6"'</div>[^@]*@\([^"]*\)' ;;
+        esac 
     fi
 
-    args+=("--outFile" "$1")
-
-    green_log "[+] Downloading $1 using APKMD: ${args[*]}"
-    
-    # Execute APKMD command
-    if $APKMD "${args[@]}"; then
-        green_log "[+] Successfully downloaded $1"
+    # Only use patches version for YouTube
+    if [[ "$1" == "com.google.android.youtube" ]]; then
+        if [[ $(ls revanced-cli-*.jar) =~ revanced-cli-([0-9]+) ]]; then
+            num=${BASH_REMATCH[1]}
+            if [ $num -ge 5 ]; then
+                version=$(java -jar *cli*.jar list-patches --with-packages --with-versions *.rvp | awk -v pkg="$1" 'BEGIN { found = 0 } /^Index:/ { found = 0 } /Package name: / { if ($3 == pkg) { found = 1 } } /Compatible versions:/ { if (found) { getline; latest_version = $1; while (getline && $1 ~ /^[0-9]+\./) { latest_version = $1 } print latest_version; exit } }')
+            else
+                version=$(jq -r '[.. | objects | select(.name == "'$1'" and .versions != null) | .versions[]] | reverse | .[0] // ""' *.json | uniq)
+            fi
+        fi
     else
-        red_log "[-] Failed to download $1"
-        exit 1
+        # For all other apps, scrape latest version from APKMirror
+        local attempt=0
+        while [ $attempt -lt 10 ]; do
+            version=$(req "https://www.apkmirror.com/apk/$4/" - | tr '\n' ' ' | sed -n 's/.*Version:\s*\([^<]*\).*/\1/p' | head -n1)
+            if [ ! -z "$version" ]; then
+                break
+            fi
+            ((attempt++))
+            sleep 1
+        done
     fi
 
-    # Find the actual downloaded file
-    local downloaded_file=$(find ./download -type f -name "*.apkm" -o -name "*.apk" | head -n 1)
-    
-    if [ -z "$downloaded_file" ]; then
-        red_log "[-] Downloaded file not found"
-        exit 1
-    fi
-
-    # Handle bundle processing
-    if [[ $3 == "bundle" ]]; then
-        mv "$downloaded_file" "./download/$1.apkm"
-        green_log "[+] Processing bundle using APKEditor"
-        
-        # Create temporary directory for extraction
-        mkdir -p "./download/$1_temp"
-        
-        # Extract bundle to temp directory
-        java -jar $APKEditor m -i "./download/$1.apkm" -o "./download/$1_temp" --extract > /dev/null 2>&1
-        
-        if [ $? -ne 0 ]; then
-            red_log "[-] Failed to extract bundle"
+    export version="$version"
+    if [[ -n "$version" ]]; then
+        green_log "[+] Downloading $3 version: $version $5 $6 $7"
+        if [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
+            local base_apk="$2.apkm"
+        else
+            local base_apk="$2.apk"
+        fi
+        local app_slug=$(basename "$4")
+        local version_slug="${version//./-}"  # Replace dots with hyphens
+        local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$app_slug-$version_slug-release/" \
+                              "$url_regexp" \
+                              "$base_apk" \
+                              "$5")
+        if [[ -f "./download/$base_apk" ]]; then
+            green_log "[+] Successfully downloaded $2"
+        else
+            red_log "[-] Failed to download $2"
             exit 1
         fi
-        
-        # Move the base APK to the expected location
-        mv "./download/$1_temp/base.apk" "./download/$1.apk"
-        
-        # Clean up
-        rm -rf "./download/$1_temp" "./download/$1.apkm"
-    else
-        mv "$downloaded_file" "./download/$1.apk"
+        if [[ $5 == "Bundle" ]]; then
+            green_log "[+] Merge splits apk to standalone apk"
+            java -jar $APKEditor m -i ./download/$2.apkm -o ./download/$2.apk > /dev/null 2>&1
+        elif [[ $5 == "Bundle_extract" ]]; then
+            unzip "./download/$base_apk" -d "./download/$(basename "$base_apk" .apkm)" > /dev/null 2>&1
+        fi
+        return 0
     fi
+	local attempt=0
+	while [ $attempt -lt 10 ]; do
+		if [[ -z $version ]] || [ $attempt -ne 0 ]; then
+			local upload_tail="?$([[ $3 = duolingo ]] && echo devcategory= || echo appcategory=)"
+			version=$(req "https://www.apkmirror.com/uploads/$upload_tail$3" - | \
+				$pup 'div.widget_appmanager_recentpostswidget h5 a.fontBlack text{}' | \
+				grep -Evi 'alpha|beta|wear|android tv|bundle|test' | \
+				grep -oP '\b\d+\.\d+\.\d+\.\d+\.\d+\b|\b\d+\.\d+\.\d+\.\d+\b' | \
+				sort -V -r | \
+				sed -n "$((attempt + 1))p")
+		fi
+		version=$(echo "$version" | tr -d ' ')
+		
+		# Add architecture and DPI filtering to the version string if provided
+		local arch_filter=""
+		local dpi_filter=""
+		[[ ! -z "$6" ]] && arch_filter="-$6"
+		[[ ! -z "$7" ]] && dpi_filter="-$7"
+		
+		local app_slug=$(basename "$4")
+		local version_slug="${version//./-}"  # Replace dots with hyphens
+		
+		green_log "[+] Downloading $3 version: $version$arch_filter$dpi_filter"
+		if [[ $5 == "Bundle" ]] || [[ $5 == "Bundle_extract" ]]; then
+			local base_apk="$2.apkm"
+		else
+			local base_apk="$2.apk"
+		fi
+		local dl_url=$(dl_apk "https://www.apkmirror.com/apk/$4/$app_slug-$version_slug-release/" \
+							  "$url_regexp" \
+							  "$base_apk" \
+							  "$5")
+		if [[ -f "./download/$base_apk" ]]; then
+			green_log "[+] Successfully downloaded $2"
+			break
+		else
+			((attempt++))
+			red_log "[-] Failed to download $2, trying another version"
+			unset version
+		fi
+	done
+
+	if [ $attempt -eq 10 ]; then
+		red_log "[-] No more versions to try. Failed download"
+		return 1
+	fi
+	if [[ $5 == "Bundle" ]]; then
+		green_log "[+] Merge splits apk to standalone apk"
+		java -jar $APKEditor m -i ./download/$2.apkm -o ./download/$2.apk > /dev/null 2>&1
+	elif [[ $5 == "Bundle_extract" ]]; then
+		unzip "./download/$base_apk" -d "./download/$(basename "$base_apk" .apkm)" > /dev/null 2>&1
+	fi
 }
 
 #################################################
