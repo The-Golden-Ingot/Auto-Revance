@@ -53,7 +53,12 @@ jobs:
       - name: Patch apk
         id: patch-rvb
         if: steps.check-gh-rvb.outputs.internet_error == '0'
-        run: bash src/build/Revanced.sh ${{ matrix.app }}
+        run: |
+          set -e  # Exit on any error
+          bash src/build/Revanced.sh ${{ matrix.app }}
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: Etc/UTC
       - name: Cache
         uses: actions/upload-artifact@v4
         with:

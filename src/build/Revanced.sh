@@ -20,26 +20,32 @@ patch_googlephotos() {
 }
 
 patch_soundcloud() {
+	set -x  # Enable debug mode
 	revanced_dl
+	
+	green_log "[+] Downloading SoundCloud APK"
 	get_apk "com.soundcloud.android" "soundcloud.apkm" "soundcloud" "soundcloud-play-music-songs" \
 			"bundle" "universal" "nodpi"
 	
-	# First merge the split APK
+	green_log "[+] Processing split APK"
 	split_editor "soundcloud" "soundcloud-merged" "exclude" "split_config.armeabi_v7a split_config.x86 split_config.x86_64"
 	
-	# Generate arguments to remove DPIs for the merged APK
+	green_log "[+] Generating lib arguments"
 	rip_libs=$(gen_rip_libs armeabi-v7a x86 x86_64)
+	
+	green_log "[+] Setting DPI arguments"
 	rip_dpi="--rip-dpi mdpi --rip-dpi hdpi --rip-dpi xhdpi --rip-dpi xxxhdpi --rip-dpi tvdpi \
 			 --rip-dpi sw600dp --rip-dpi sw720dp --rip-dpi sw800dp --rip-dpi television \
 			 --rip-dpi watch --rip-dpi large --rip-dpi xlarge --rip-dpi small \
 			 --rip-dpi h320dp --rip-dpi h360dp --rip-dpi h480dp --rip-dpi h500dp --rip-dpi h550dp --rip-dpi h720dp \
 			 --rip-dpi w320dp --rip-dpi w360dp --rip-dpi w400dp --rip-dpi w600dp"
 	
-	# Now strip DPIs and libs from the merged APK
+	green_log "[+] Processing architecture split"
 	split_arch "soundcloud-merged" "revanced" "$rip_libs $rip_dpi"
 	
-	# Rename the final output file
+	green_log "[+] Renaming output file"
 	mv ./release/soundcloud-merged-arm64-v8a-revanced.apk ./release/soundcloud-revanced.apk
+	set +x  # Disable debug mode
 }
 
 case "$1" in
