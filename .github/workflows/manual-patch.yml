@@ -40,7 +40,11 @@ jobs:
       - name: Preparing to patch
         uses: ./.github/actions/preparing
       - name: Install library
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: Etc/UTC
         run: |
+          ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
           apt-get update
           apt-get install -y curl jq wget unzip nodejs npm
       - name: Check github connection
@@ -92,7 +96,11 @@ jobs:
       - name: Preparing to patch
         uses: ./.github/actions/preparing
       - name: Install library
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: Etc/UTC
         run: |
+          ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
           apt-get update
           apt-get install -y curl jq wget unzip nodejs npm
       - name: Check github connection
@@ -136,7 +144,11 @@ jobs:
       - name: Preparing to patch
         uses: ./.github/actions/preparing
       - name: Install library
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: Etc/UTC
         run: |
+          ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
           apt-get update
           apt-get install -y curl jq wget unzip nodejs npm
       - name: Check github connection
@@ -180,7 +192,11 @@ jobs:
       - name: Preparing to patch
         uses: ./.github/actions/preparing
       - name: Install library
+        env:
+          DEBIAN_FRONTEND: noninteractive
+          TZ: Etc/UTC
         run: |
+          ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
           apt-get update
           apt-get install -y curl jq wget unzip nodejs npm
       - name: Check github connection
