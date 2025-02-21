@@ -1,0 +1,11 @@
+# APK Download Settings
+
+# SoundCloud
+SOUNDCLOUD_ORG="soundcloud-play-music-songs"
+SOUNDCLOUD_REPO="soundcloud"
+SOUNDCLOUD_ARCH="universal"
+SOUNDCLOUD_DPI="nodpi"
+SOUNDCLOUD_TYPE="bundle"
+SOUNDCLOUD_MIN_SDK="android5.0"
+
+# Add other app settings as needed... 

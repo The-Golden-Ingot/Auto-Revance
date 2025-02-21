@@ -147,6 +147,17 @@ dl_apkmd() {
     local output="$3"
     local options=()
     
+    # Validate required parameters
+    if [[ -z "$org" ]]; then
+        red_log "[-] Organization name is required"
+        return 1
+    fi
+    
+    # Handle empty repo by using org name
+    if [[ -z "$repo" ]]; then
+        repo="${org,,}"  # Convert to lowercase
+    fi
+    
     [[ ! -z "$4" ]] && options+=(--arch "$4")
     [[ ! -z "$5" ]] && options+=(--dpi "$5")
     [[ ! -z "$6" ]] && options+=(--type "$6")
@@ -155,7 +166,10 @@ dl_apkmd() {
     
     green_log "[+] Downloading ${org}/${repo} with options: ${options[*]}"
     
-    if npx apkmirror-downloader download \
+    # Ensure download directory exists
+    mkdir -p "./download"
+    
+    if npx --no-install apkmirror-downloader download \
         --org "$org" \
         --repo "$repo" \
         --outDir "./download" \
