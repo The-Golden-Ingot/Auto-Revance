@@ -2,6 +2,14 @@
 
 mkdir ./release ./download
 
+# Download APKs using APKMD CLI
+setup_apkmd() {
+    # Download and setup APKMD
+    wget -q -O ./apkmd https://github.com/tanishqmanuja/apkmirror-downloader/releases/latest/download/apkmd
+    chmod +x ./apkmd
+    APKMD="./apkmd"
+}
+
 #Setup pup for download apk files
 wget -qO- "https://api.github.com/repos/ericchiang/pup/releases/latest" \
     | jq -r '.assets[] | select(.name | endswith("linux_amd64.zip")) | .browser_download_url' \
