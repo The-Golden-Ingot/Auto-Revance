@@ -187,9 +187,6 @@ get_apk() {
         args+=("--type" "apk")
     fi
 
-    # Set output filename
-    local base_apk="$1.apk"
-    [ "$3" == "bundle" ] && base_apk="$1.apkm"
     args+=("--outFile" "$1")
 
     green_log "[+] Downloading $1 using APKMD: ${args[*]}"
@@ -202,9 +199,37 @@ get_apk() {
         exit 1
     fi
 
-    # Handle post-download processing for bundles
+    # Find the actual downloaded file
+    local downloaded_file=$(find ./download -type f -name "*.apkm" -o -name "*.apk" | head -n 1)
+    
+    if [ -z "$downloaded_file" ]; then
+        red_log "[-] Downloaded file not found"
+        exit 1
+    fi
+
+    # Handle bundle processing
     if [[ $3 == "bundle" ]]; then
-        unzip "./download/$base_apk" -d "./download/$(basename "$base_apk" .apkm)" > /dev/null 2>&1
+        mv "$downloaded_file" "./download/$1.apkm"
+        green_log "[+] Processing bundle using APKEditor"
+        
+        # Create temporary directory for extraction
+        mkdir -p "./download/$1_temp"
+        
+        # Extract bundle to temp directory
+        java -jar $APKEditor m -i "./download/$1.apkm" -o "./download/$1_temp" --extract > /dev/null 2>&1
+        
+        if [ $? -ne 0 ]; then
+            red_log "[-] Failed to extract bundle"
+            exit 1
+        fi
+        
+        # Move the base APK to the expected location
+        mv "./download/$1_temp/base.apk" "./download/$1.apk"
+        
+        # Clean up
+        rm -rf "./download/$1_temp" "./download/$1.apkm"
+    else
+        mv "$downloaded_file" "./download/$1.apk"
     fi
 }
 
