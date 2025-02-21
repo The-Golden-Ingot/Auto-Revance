@@ -163,32 +163,32 @@ get_apk() {
     
     # Build APKMD command arguments
     local args=(
-        download
-        --org "$org"
-        --repo "$repo"
-        --out-dir "./download"
+        "download"
+        "$org"  # First required argument
+        "$repo" # Second required argument
+        "--out-dir" "./download"
     )
     
     # Add version if available
-    [ -n "$version" ] && args+=(--version "$version")
+    [ -n "$version" ] && args+=("--version" "$version")
     
     # Add architecture filter if specified (arm64-v8a, armeabi-v7a, etc)
-    [ -n "$6" ] && args+=(--arch "$6")
+    [ -n "$6" ] && args+=("--arch" "$6")
     
     # Add DPI filter if specified (xxhdpi, etc)
-    [ -n "$7" ] && args+=(--dpi "$7")
+    [ -n "$7" ] && args+=("--dpi" "$7")
     
     # Set type (apk or bundle)
     if [[ $5 == "Bundle"* ]]; then
-        args+=(--type "bundle")
+        args+=("--type" "bundle")
     else
-        args+=(--type "apk")
+        args+=("--type" "apk")
     fi
 
     # Set output filename
     local base_apk="$2.apk"
     [ "$5" == "Bundle"* ] && base_apk="$2.apkm"
-    args+=(--out-file "$2")
+    args+=("--outfile" "$2")
 
     green_log "[+] Downloading $3 using APKMD: ${args[*]}"
     
